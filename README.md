@@ -67,9 +67,15 @@ L'autorisation combine :
 - Les appels à l'API se font uniquement côté serveur (Server Components, Server Actions) — le jeton Sanctum est stocké dans un cookie httpOnly (`stf_token` pour `site`, `stf_admin_token` pour `backoffice`), jamais exposé au JS client.
 - `src/proxy.ts` (convention Next.js 16, ex-`middleware.ts`) protège les routes `/mentee`, `/mentore` (site) et tout le back-office hors `/connexion`.
 
+## Tests
+
+```bash
+php artisan test
+```
+
+90 tests Feature (SQLite en mémoire, rôles/permissions seedés automatiquement dans `Tests\TestCase`) couvrant l'authentification (register/login/MFA/mot de passe), le RBAC, et chaque ressource API (programmes, cohortes, binômes, matching, sessions, modules/quiz, badges/certificats, projets, groupes, messagerie, signalements, journaux d'audit, contenu éditorial, contact, tableau de bord).
+
 ## Prochaines étapes
 
 - Ajouter le stockage de fichiers (certificats, fichiers de groupe) sur un disque S3-compatible en production.
-- Ajouter des tests Feature pour les policies et le flux MFA.
 - Générer réellement les exports CSV/PDF de la page Reporting (actuellement des indicateurs réels mais des boutons d'export désactivés).
-# STF-BACKEND
