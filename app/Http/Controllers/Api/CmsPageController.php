@@ -7,9 +7,21 @@ use App\Models\CmsPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 
 class CmsPageController extends Controller
 {
+    #[OA\Get(
+        path: '/cms/pages',
+        summary: 'Lister les pages/articles',
+        description: 'Public — ne renvoie que les contenus publiés, sauf avec `cms.manage`.',
+        tags: ['CMS'],
+        parameters: [
+            new OA\QueryParameter(name: 'type', schema: new OA\Schema(type: 'string', enum: ['page', 'article'])),
+            new OA\QueryParameter(name: 'category', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [new OA\Response(response: 200, description: 'Contenus', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/CmsPage')))]
+    )]
     public function index(Request $request)
     {
         return CmsPage::query()
@@ -20,6 +32,17 @@ class CmsPageController extends Controller
             ->get();
     }
 
+    #[OA\Get(
+        path: '/cms/pages/{slug}',
+        summary: 'Consulter une page/article par slug',
+        description: 'Public pour les contenus publiés ; 404 sur un brouillon sans `cms.manage`.',
+        tags: ['CMS'],
+        parameters: [new OA\PathParameter(name: 'slug', schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Contenu', content: new OA\JsonContent(ref: '#/components/schemas/CmsPage')),
+            new OA\Response(response: 404, description: 'Introuvable ou non publié'),
+        ]
+    )]
     public function show(Request $request, string $slug)
     {
         $page = CmsPage::where('slug', $slug)->firstOrFail();
@@ -29,6 +52,27 @@ class CmsPageController extends Controller
         return $page;
     }
 
+    #[OA\Post(
+        path: '/cms/pages',
+        summary: 'Créer une page/article',
+        security: [['bearerAuth' => []]],
+        tags: ['CMS'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(required: ['title'], properties: [
+                new OA\Property(property: 'title', type: 'string'),
+                new OA\Property(property: 'type', type: 'string', enum: ['page', 'article'], default: 'page'),
+                new OA\Property(property: 'body', type: 'string', nullable: true),
+                new OA\Property(property: 'excerpt', type: 'string', nullable: true),
+                new OA\Property(property: 'category', type: 'string', nullable: true),
+                new OA\Property(property: 'status', type: 'string', enum: ['brouillon', 'publie'], default: 'brouillon'),
+            ])
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Créé', content: new OA\JsonContent(ref: '#/components/schemas/CmsPage')),
+            new OA\Response(response: 403, description: "Permission `cms.manage` requise"),
+        ]
+    )]
     public function store(Request $request)
     {
         abort_unless($request->user()->can('cms.manage'), 403);
@@ -53,6 +97,24 @@ class CmsPageController extends Controller
         return response()->json(CmsPage::create($data), 201);
     }
 
+    #[OA\Patch(
+        path: '/cms/pages/{page}',
+        summary: 'Modifier une page/article',
+        security: [['bearerAuth' => []]],
+        tags: ['CMS'],
+        parameters: [new OA\PathParameter(name: 'page', schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'title', type: 'string'),
+            new OA\Property(property: 'body', type: 'string', nullable: true),
+            new OA\Property(property: 'excerpt', type: 'string', nullable: true),
+            new OA\Property(property: 'category', type: 'string', nullable: true),
+            new OA\Property(property: 'status', type: 'string', enum: ['brouillon', 'publie']),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Modifié', content: new OA\JsonContent(ref: '#/components/schemas/CmsPage')),
+            new OA\Response(response: 403, description: "Permission `cms.manage` requise"),
+        ]
+    )]
     public function update(Request $request, CmsPage $page)
     {
         abort_unless($request->user()->can('cms.manage'), 403);
@@ -77,6 +139,17 @@ class CmsPageController extends Controller
         return $page;
     }
 
+    #[OA\Delete(
+        path: '/cms/pages/{page}',
+        summary: 'Supprimer une page/article',
+        security: [['bearerAuth' => []]],
+        tags: ['CMS'],
+        parameters: [new OA\PathParameter(name: 'page', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 204, description: 'Supprimé'),
+            new OA\Response(response: 403, description: "Permission `cms.manage` requise"),
+        ]
+    )]
     public function destroy(Request $request, CmsPage $page)
     {
         abort_unless($request->user()->can('cms.manage'), 403);
