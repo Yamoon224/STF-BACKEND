@@ -8,8 +8,13 @@ use App\Models\Certificate;
 use App\Models\CmsPage;
 use App\Models\Cohort;
 use App\Models\Conversation;
+use App\Models\Course;
+use App\Models\CourseProgress;
+use App\Models\Experiment;
 use App\Models\Faq;
 use App\Models\Group;
+use App\Models\Level;
+use App\Models\LiveSession;
 use App\Models\MenteeProfile;
 use App\Models\MentorProfile;
 use App\Models\MentorshipPairing;
@@ -20,6 +25,7 @@ use App\Models\Partner;
 use App\Models\Program;
 use App\Models\Project;
 use App\Models\Report;
+use App\Models\Subject;
 use App\Models\Testimonial;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -294,6 +300,113 @@ class DemoDataSeeder extends Seeder
         $q1->options()->createMany([
             ['label' => 'Vrai', 'is_correct' => true],
             ['label' => 'Faux', 'is_correct' => false],
+        ]);
+
+        // --- Cours de renforcement, labo virtuel & sessions live ----------
+        $levels = [
+            '6e-5e' => Level::create(['name' => '6e & 5e', 'slug' => '6e-5e', 'order' => 1]),
+            '4e-3e' => Level::create(['name' => '4e & 3e', 'slug' => '4e-3e', 'order' => 2]),
+            '2nde-1re' => Level::create(['name' => '2nde & 1re', 'slug' => '2nde-1re', 'order' => 3]),
+            'terminale-c-d' => Level::create(['name' => 'Terminale C & D', 'slug' => 'terminale-c-d', 'order' => 4]),
+        ];
+
+        $subjects = [
+            'mathematiques' => Subject::create(['name' => 'Mathématiques', 'slug' => 'mathematiques']),
+            'physique' => Subject::create(['name' => 'Physique', 'slug' => 'physique']),
+            'chimie' => Subject::create(['name' => 'Chimie', 'slug' => 'chimie']),
+            'svt' => Subject::create(['name' => 'SVT', 'slug' => 'svt']),
+        ];
+
+        $courseFonctions = Course::create([
+            'level_id' => $levels['terminale-c-d']->id,
+            'subject_id' => $subjects['mathematiques']->id,
+            'title' => 'Fonctions et dérivées',
+            'description' => 'Étude de fonctions, calcul de dérivées et applications.',
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        $courseMecanique = Course::create([
+            'level_id' => $levels['terminale-c-d']->id,
+            'subject_id' => $subjects['physique']->id,
+            'title' => 'Mécanique du point',
+            'description' => "Cinématique et dynamique du point matériel.",
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        $courseElectricite = Course::create([
+            'level_id' => $levels['2nde-1re']->id,
+            'subject_id' => $subjects['physique']->id,
+            'title' => 'Électricité — circuits en courant continu',
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        $courseAcideBase = Course::create([
+            'level_id' => $levels['2nde-1re']->id,
+            'subject_id' => $subjects['chimie']->id,
+            'title' => 'Réactions acide-base',
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        Course::create([
+            'level_id' => $levels['4e-3e']->id,
+            'subject_id' => $subjects['svt']->id,
+            'title' => 'Reproduction et hérédité',
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        Course::create([
+            'level_id' => $levels['6e-5e']->id,
+            'subject_id' => $subjects['mathematiques']->id,
+            'title' => 'Nombres et fractions',
+            'order' => 1,
+            'status' => 'brouillon',
+        ]);
+
+        CourseProgress::create(['user_id' => $aicha->id, 'course_id' => $courseFonctions->id, 'progress' => 40]);
+
+        Experiment::create([
+            'subject_id' => $subjects['chimie']->id,
+            'level_id' => $levels['2nde-1re']->id,
+            'course_id' => $courseAcideBase->id,
+            'title' => 'Dosage acide-base',
+            'description' => "Déterminer la concentration d'une solution par titrage.",
+            'instructions' => "1. Préparer la burette. 2. Verser l'indicateur coloré. 3. Titrer goutte à goutte jusqu'au virage.",
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        Experiment::create([
+            'subject_id' => $subjects['physique']->id,
+            'level_id' => $levels['terminale-c-d']->id,
+            'course_id' => $courseMecanique->id,
+            'title' => 'Chute libre et frottements',
+            'description' => "Comparer la chute d'objets avec et sans frottement de l'air.",
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        Experiment::create([
+            'subject_id' => $subjects['svt']->id,
+            'level_id' => $levels['4e-3e']->id,
+            'title' => 'Observation de cellules au microscope',
+            'description' => "Observer et légender des cellules végétales et animales.",
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+
+        LiveSession::create([
+            'course_id' => $courseFonctions->id,
+            'title' => 'Session de révision — Fonctions et dérivées',
+            'scheduled_at' => '2026-07-24 18:00:00',
+            'duration_minutes' => 60,
+            'status' => 'a_venir',
+            'created_by' => $staff->id,
+        ]);
+        LiveSession::create([
+            'course_id' => $courseElectricite->id,
+            'title' => 'Atelier questions-réponses — Électricité',
+            'scheduled_at' => '2026-07-28 17:00:00',
+            'duration_minutes' => 45,
+            'status' => 'a_venir',
+            'created_by' => $staff->id,
         ]);
 
         // --- Badges & certificates ------------------------------------

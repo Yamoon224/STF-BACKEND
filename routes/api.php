@@ -8,12 +8,16 @@ use App\Http\Controllers\Api\CmsPageController;
 use App\Http\Controllers\Api\CohortController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ExperimentController;
 use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\GroupCommentController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\GroupFileController;
 use App\Http\Controllers\Api\GroupPostController;
+use App\Http\Controllers\Api\LevelController;
+use App\Http\Controllers\Api\LiveSessionController;
 use App\Http\Controllers\Api\MatchingController;
 use App\Http\Controllers\Api\MentorshipPairingController;
 use App\Http\Controllers\Api\MentorshipSessionController;
@@ -27,6 +31,7 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SecuritySettingsController;
 use App\Http\Controllers\Api\SessionNoteController;
 use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -57,6 +62,15 @@ Route::get('cms/pages', [CmsPageController::class, 'index']);
 Route::get('cms/pages/{slug}', [CmsPageController::class, 'show']);
 Route::get('stats/impact', [StatsController::class, 'impact']);
 Route::post('contact', [ContactMessageController::class, 'store']);
+
+// --- Cours de renforcement, labo virtuel & sessions live (parcours public niveau → matière) ---
+Route::get('levels', [LevelController::class, 'index']);
+Route::get('subjects', [SubjectController::class, 'index']);
+Route::get('courses', [CourseController::class, 'index']);
+Route::get('courses/{course}', [CourseController::class, 'show']);
+Route::get('experiments', [ExperimentController::class, 'index']);
+Route::get('experiments/{experiment}', [ExperimentController::class, 'show']);
+Route::get('live-sessions', [LiveSessionController::class, 'index']);
 
 // --- Authenticated API ----------------------------------------------------
 Route::middleware('auth:sanctum')->group(function () {
@@ -101,6 +115,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('modules/{module}/quizzes', [QuizController::class, 'store'])->middleware('permission:programs.manage');
     Route::get('quizzes/{quiz}', [QuizController::class, 'show']);
     Route::post('quizzes/{quiz}/attempts', [QuizController::class, 'attempt']);
+
+    // Cours de renforcement, labo virtuel & sessions live
+    Route::post('courses', [CourseController::class, 'store'])->middleware('permission:programs.manage');
+    Route::patch('courses/{course}', [CourseController::class, 'update'])->middleware('permission:programs.manage');
+    Route::delete('courses/{course}', [CourseController::class, 'destroy'])->middleware('permission:programs.manage');
+    Route::post('courses/{course}/progress', [CourseController::class, 'updateProgress']);
+    Route::post('experiments', [ExperimentController::class, 'store'])->middleware('permission:programs.manage');
+    Route::patch('experiments/{experiment}', [ExperimentController::class, 'update'])->middleware('permission:programs.manage');
+    Route::delete('experiments/{experiment}', [ExperimentController::class, 'destroy'])->middleware('permission:programs.manage');
+    Route::post('live-sessions', [LiveSessionController::class, 'store'])->middleware('permission:programs.manage');
+    Route::patch('live-sessions/{liveSession}', [LiveSessionController::class, 'update'])->middleware('permission:programs.manage');
+    Route::delete('live-sessions/{liveSession}', [LiveSessionController::class, 'destroy'])->middleware('permission:programs.manage');
 
     // Badges & certificates
     Route::get('badges', [BadgeController::class, 'index']);
