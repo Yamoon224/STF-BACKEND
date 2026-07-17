@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use OpenApi\Attributes as OA;
 
 class AuthController extends Controller
 {
@@ -22,6 +23,36 @@ class AuthController extends Controller
     /**
      * Public self-registration, restricted to the roles that may sign themselves up.
      */
+    #[OA\Post(
+        path: '/auth/register',
+        summary: 'Créer un compte (mentée, mentore ou bailleur)',
+        description: "Les comptes admin/staff ne peuvent pas être créés par cette route (voir `POST /users`). "
+            .'Un compte mentore démarre `pending` (en attente de validation STF) ; mentée et bailleur démarrent `active`.',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['name', 'email', 'password', 'password_confirmation', 'role'],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Aïcha Diallo'),
+                    new OA\Property(property: 'email', type: 'string', format: 'email'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
+                    new OA\Property(property: 'role', type: 'string', enum: ['mentee', 'mentor', 'donor']),
+                    new OA\Property(property: 'country', type: 'string', nullable: true),
+                    new OA\Property(property: 'phone', type: 'string', nullable: true),
+                    new OA\Property(property: 'expertise', type: 'string', nullable: true, description: 'Requis si role=mentor'),
+                    new OA\Property(property: 'bio', type: 'string', nullable: true, description: 'mentor uniquement'),
+                    new OA\Property(property: 'level', type: 'string', nullable: true, description: 'mentee uniquement'),
+                    new OA\Property(property: 'school', type: 'string', nullable: true, description: 'mentee uniquement'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Compte créé', content: new OA\JsonContent(ref: '#/components/schemas/AuthTokenResponse')),
+            new OA\Response(response: 422, description: 'Validation échouée', content: new OA\JsonContent(ref: '#/components/schemas/ValidationError')),
+        ]
+    )]
     public function register(Request $request)
     {
         $data = $request->validate([
@@ -74,6 +105,35 @@ class AuthController extends Controller
         ], 201);
     }
 
+    #[OA\Post(
+        path: '/auth/login',
+        summary: 'Se connecter',
+        description: "Renvoie soit un jeton (`AuthTokenResponse`), soit un défi MFA (`MfaChallengeResponse`) si la double authentification est activée sur ce compte.",
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['email', 'password'],
+                properties: [
+                    new OA\Property(property: 'email', type: 'string', format: 'email'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Connectée, ou défi MFA à compléter',
+                content: new OA\JsonContent(
+                    oneOf: [
+                        new OA\Schema(ref: '#/components/schemas/AuthTokenResponse'),
+                        new OA\Schema(ref: '#/components/schemas/MfaChallengeResponse'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 422, description: 'Identifiants invalides ou compte suspendu', content: new OA\JsonContent(ref: '#/components/schemas/ValidationError')),
+        ]
+    )]
     public function login(Request $request)
     {
         $data = $request->validate([
@@ -108,6 +168,26 @@ class AuthController extends Controller
         return $this->issueTokenResponse($user);
     }
 
+    #[OA\Post(
+        path: '/auth/mfa/verify',
+        summary: 'Compléter la connexion avec un code MFA',
+        description: 'Accepte un code TOTP courant ou un code de récupération à usage unique.',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['mfa_challenge', 'code'],
+                properties: [
+                    new OA\Property(property: 'mfa_challenge', type: 'string'),
+                    new OA\Property(property: 'code', type: 'string', example: '123456'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Connectée', content: new OA\JsonContent(ref: '#/components/schemas/AuthTokenResponse')),
+            new OA\Response(response: 422, description: 'Code invalide ou défi expiré', content: new OA\JsonContent(ref: '#/components/schemas/ValidationError')),
+        ]
+    )]
     public function verifyMfa(Request $request)
     {
         $data = $request->validate([
@@ -137,6 +217,13 @@ class AuthController extends Controller
         return $this->issueTokenResponse($user);
     }
 
+    #[OA\Post(
+        path: '/auth/logout',
+        summary: 'Révoquer le jeton courant',
+        security: [['bearerAuth' => []]],
+        tags: ['Auth'],
+        responses: [new OA\Response(response: 204, description: 'Déconnectée')]
+    )]
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -146,6 +233,20 @@ class AuthController extends Controller
         return response()->noContent();
     }
 
+    #[OA\Get(
+        path: '/auth/me',
+        summary: 'Session courante',
+        security: [['bearerAuth' => []]],
+        tags: ['Auth'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Utilisatrice connectée',
+                content: new OA\JsonContent(properties: [new OA\Property(property: 'user', ref: '#/components/schemas/User')])
+            ),
+            new OA\Response(response: 401, description: 'Non authentifiée'),
+        ]
+    )]
     public function me(Request $request)
     {
         return response()->json([

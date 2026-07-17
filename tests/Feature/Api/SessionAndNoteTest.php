@@ -88,6 +88,21 @@ class SessionAndNoteTest extends TestCase
         $response->assertOk()->assertJsonCount(1);
     }
 
+    public function test_creating_a_note_without_visibility_defaults_to_partagee(): void
+    {
+        $pairing = $this->pairing();
+        $session = MentorshipSession::create([
+            'pairing_id' => $pairing->id, 'scheduled_at' => now(), 'status' => 'realisee',
+        ]);
+
+        Sanctum::actingAs($pairing->mentor, ['*']);
+        $response = $this->postJson("/api/sessions/{$session->id}/notes", [
+            'content' => 'Note sans visibilité explicite.',
+        ]);
+
+        $response->assertCreated()->assertJsonPath('visibility', 'partagee');
+    }
+
     public function test_private_note_is_hidden_from_the_other_party(): void
     {
         $pairing = $this->pairing();

@@ -7,9 +7,23 @@ use App\Models\MentorshipPairing;
 use App\Models\MentorshipSession;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 
 class MentorshipSessionController extends Controller
 {
+    #[OA\Get(
+        path: '/sessions',
+        summary: 'Lister les sessions de mentorat',
+        security: [['bearerAuth' => []]],
+        tags: ['Sessions'],
+        parameters: [
+            new OA\QueryParameter(name: 'pairing_id', schema: new OA\Schema(type: 'integer')),
+            new OA\QueryParameter(name: 'status', schema: new OA\Schema(type: 'string', enum: ['en_attente', 'confirmee', 'realisee', 'annulee'])),
+        ],
+        responses: [new OA\Response(response: 200, description: 'Page paginée (20/page)', content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/MentorshipSession')),
+        ]))]
+    )]
     public function index(Request $request)
     {
         $this->authorize('viewAny', MentorshipSession::class);
@@ -27,6 +41,17 @@ class MentorshipSessionController extends Controller
             ->paginate(20);
     }
 
+    #[OA\Get(
+        path: '/sessions/{session}',
+        summary: 'Consulter une session',
+        security: [['bearerAuth' => []]],
+        tags: ['Sessions'],
+        parameters: [new OA\PathParameter(name: 'session', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Session', content: new OA\JsonContent(ref: '#/components/schemas/MentorshipSession')),
+            new OA\Response(response: 403, description: 'Non membre du binôme'),
+        ]
+    )]
     public function show(MentorshipSession $session)
     {
         $this->authorize('view', $session);
@@ -34,6 +59,30 @@ class MentorshipSessionController extends Controller
         return $session->load(['pairing.mentee', 'pairing.mentor', 'notes.author']);
     }
 
+    #[OA\Post(
+        path: '/sessions',
+        summary: 'Planifier une session',
+        security: [['bearerAuth' => []]],
+        tags: ['Sessions'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['pairing_id', 'scheduled_at'],
+                properties: [
+                    new OA\Property(property: 'pairing_id', type: 'integer'),
+                    new OA\Property(property: 'scheduled_at', type: 'string', format: 'date-time'),
+                    new OA\Property(property: 'duration_minutes', type: 'integer', minimum: 15, maximum: 240, nullable: true),
+                    new OA\Property(property: 'topic', type: 'string', nullable: true),
+                    new OA\Property(property: 'location_or_link', type: 'string', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Créée', content: new OA\JsonContent(ref: '#/components/schemas/MentorshipSession')),
+            new OA\Response(response: 403, description: 'Non membre du binôme'),
+            new OA\Response(response: 422, description: 'Validation échouée', content: new OA\JsonContent(ref: '#/components/schemas/ValidationError')),
+        ]
+    )]
     public function store(Request $request)
     {
         $this->authorize('create', MentorshipSession::class);
@@ -59,6 +108,24 @@ class MentorshipSessionController extends Controller
         return response()->json(MentorshipSession::create($data)->load('pairing'), 201);
     }
 
+    #[OA\Patch(
+        path: '/sessions/{session}',
+        summary: 'Modifier une session (confirmer, replanifier, annuler…)',
+        security: [['bearerAuth' => []]],
+        tags: ['Sessions'],
+        parameters: [new OA\PathParameter(name: 'session', schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'scheduled_at', type: 'string', format: 'date-time'),
+            new OA\Property(property: 'duration_minutes', type: 'integer', minimum: 15, maximum: 240, nullable: true),
+            new OA\Property(property: 'status', type: 'string', enum: ['en_attente', 'confirmee', 'realisee', 'annulee']),
+            new OA\Property(property: 'topic', type: 'string', nullable: true),
+            new OA\Property(property: 'location_or_link', type: 'string', nullable: true),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Modifiée', content: new OA\JsonContent(ref: '#/components/schemas/MentorshipSession')),
+            new OA\Response(response: 403, description: 'Non autorisée'),
+        ]
+    )]
     public function update(Request $request, MentorshipSession $session)
     {
         $this->authorize('update', $session);
@@ -76,6 +143,17 @@ class MentorshipSessionController extends Controller
         return $session->load('pairing');
     }
 
+    #[OA\Delete(
+        path: '/sessions/{session}',
+        summary: 'Supprimer une session',
+        security: [['bearerAuth' => []]],
+        tags: ['Sessions'],
+        parameters: [new OA\PathParameter(name: 'session', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 204, description: 'Supprimée'),
+            new OA\Response(response: 403, description: "Permission `sessions.manage` requise"),
+        ]
+    )]
     public function destroy(MentorshipSession $session)
     {
         $this->authorize('delete', $session);

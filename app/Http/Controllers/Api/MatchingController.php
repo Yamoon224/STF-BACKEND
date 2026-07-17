@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MentorProfile;
 use App\Models\MentorshipPairing;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
 class MatchingController extends Controller
 {
@@ -13,6 +14,18 @@ class MatchingController extends Controller
      * Naive matching suggestions: mentees without an active pairing, matched against
      * validated mentors who still have capacity. The STF team confirms/adjusts manually.
      */
+    #[OA\Get(
+        path: '/matching/suggestions',
+        summary: 'Suggestions de matching mentée ⇄ mentore',
+        description: 'Mentées en attente de binôme, avec une mentore validée disponible suggérée (capacité non atteinte).',
+        security: [['bearerAuth' => []]],
+        tags: ['Matching'],
+        parameters: [new OA\QueryParameter(name: 'program_id', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Suggestions', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/MatchingSuggestion'))),
+            new OA\Response(response: 403, description: "Permission `matching.manage` ou `pairings.manage` requise"),
+        ]
+    )]
     public function suggestions(Request $request)
     {
         $this->authorize('create', MentorshipPairing::class);
