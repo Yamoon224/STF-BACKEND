@@ -26,6 +26,19 @@ class LiveSessionController extends Controller
             ->get();
     }
 
+    #[OA\Get(
+        path: '/live-sessions/{liveSession}',
+        summary: 'Consulter une session live',
+        description: 'Public.',
+        tags: ['Cours de renforcement'],
+        parameters: [new OA\PathParameter(name: 'liveSession', schema: new OA\Schema(type: 'integer'))],
+        responses: [new OA\Response(response: 200, description: 'Session live', content: new OA\JsonContent(ref: '#/components/schemas/LiveSession'))]
+    )]
+    public function show(LiveSession $liveSession)
+    {
+        return $liveSession->load(['course.level', 'course.subject']);
+    }
+
     #[OA\Post(
         path: '/live-sessions',
         summary: 'Programmer une session live',

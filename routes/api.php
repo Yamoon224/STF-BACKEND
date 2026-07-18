@@ -71,6 +71,7 @@ Route::get('courses/{course}', [CourseController::class, 'show']);
 Route::get('experiments', [ExperimentController::class, 'index']);
 Route::get('experiments/{experiment}', [ExperimentController::class, 'show']);
 Route::get('live-sessions', [LiveSessionController::class, 'index']);
+Route::get('live-sessions/{liveSession}', [LiveSessionController::class, 'show']);
 
 // --- Authenticated API ----------------------------------------------------
 Route::middleware('auth:sanctum')->group(function () {

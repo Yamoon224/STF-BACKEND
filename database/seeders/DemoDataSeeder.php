@@ -337,6 +337,7 @@ class DemoDataSeeder extends Seeder
             'level_id' => $levels['2nde-1re']->id,
             'subject_id' => $subjects['physique']->id,
             'title' => 'Électricité — circuits en courant continu',
+            'description' => "Lois de tension et d'intensité dans les circuits série et dérivation.",
             'order' => 1,
             'status' => 'publie',
         ]);
@@ -347,19 +348,28 @@ class DemoDataSeeder extends Seeder
             'order' => 1,
             'status' => 'publie',
         ]);
-        Course::create([
+        $courseReproduction = Course::create([
             'level_id' => $levels['4e-3e']->id,
             'subject_id' => $subjects['svt']->id,
             'title' => 'Reproduction et hérédité',
             'order' => 1,
             'status' => 'publie',
         ]);
-        Course::create([
+        $courseFractions = Course::create([
             'level_id' => $levels['6e-5e']->id,
             'subject_id' => $subjects['mathematiques']->id,
             'title' => 'Nombres et fractions',
+            'description' => 'Comparer, additionner et simplifier des fractions.',
             'order' => 1,
-            'status' => 'brouillon',
+            'status' => 'publie',
+        ]);
+        $courseVivant = Course::create([
+            'level_id' => $levels['6e-5e']->id,
+            'subject_id' => $subjects['svt']->id,
+            'title' => 'Le vivant et son environnement',
+            'description' => 'Découvrir les besoins et le développement des êtres vivants.',
+            'order' => 2,
+            'status' => 'publie',
         ]);
 
         CourseProgress::create(['user_id' => $aicha->id, 'course_id' => $courseFonctions->id, 'progress' => 40]);
@@ -386,8 +396,30 @@ class DemoDataSeeder extends Seeder
         Experiment::create([
             'subject_id' => $subjects['svt']->id,
             'level_id' => $levels['4e-3e']->id,
+            'course_id' => $courseReproduction->id,
             'title' => 'Observation de cellules au microscope',
             'description' => "Observer et légender des cellules végétales et animales.",
+            'instructions' => "1. Préparer une lamelle avec l'échantillon. 2. Régler le microscope du grossissement le plus faible au plus fort. 3. Dessiner et légender ce qui est observé.",
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        Experiment::create([
+            'subject_id' => $subjects['physique']->id,
+            'level_id' => $levels['2nde-1re']->id,
+            'course_id' => $courseElectricite->id,
+            'title' => 'Mesure de tension et d\'intensité',
+            'description' => "Mesurer tension et intensité dans un circuit série et un circuit en dérivation.",
+            'instructions' => "1. Monter le circuit avec une pile, une lampe et un interrupteur. 2. Brancher le voltmètre en dérivation puis l'ampèremètre en série. 3. Relever et comparer les mesures.",
+            'order' => 1,
+            'status' => 'publie',
+        ]);
+        Experiment::create([
+            'subject_id' => $subjects['svt']->id,
+            'level_id' => $levels['6e-5e']->id,
+            'course_id' => $courseVivant->id,
+            'title' => 'Germination des graines',
+            'description' => "Observer les conditions nécessaires à la germination d'une graine.",
+            'instructions' => "1. Placer des graines dans plusieurs pots (eau, lumière, terre variables). 2. Observer chaque jour pendant deux semaines. 3. Comparer les conditions de germination.",
             'order' => 1,
             'status' => 'publie',
         ]);
@@ -404,6 +436,46 @@ class DemoDataSeeder extends Seeder
             'course_id' => $courseElectricite->id,
             'title' => 'Atelier questions-réponses — Électricité',
             'scheduled_at' => '2026-07-28 17:00:00',
+            'duration_minutes' => 45,
+            'status' => 'a_venir',
+            'created_by' => $staff->id,
+        ]);
+        LiveSession::create([
+            'course_id' => $courseMecanique->id,
+            'title' => 'Session live — Mécanique du point',
+            'scheduled_at' => '2026-07-26 18:00:00',
+            'duration_minutes' => 60,
+            'status' => 'a_venir',
+            'created_by' => $staff->id,
+        ]);
+        LiveSession::create([
+            'course_id' => $courseAcideBase->id,
+            'title' => 'Atelier questions-réponses — Réactions acide-base',
+            'scheduled_at' => '2026-07-30 17:00:00',
+            'duration_minutes' => 45,
+            'status' => 'a_venir',
+            'created_by' => $staff->id,
+        ]);
+        LiveSession::create([
+            'course_id' => $courseReproduction->id,
+            'title' => 'Session live — Reproduction et hérédité',
+            'scheduled_at' => '2026-08-02 17:00:00',
+            'duration_minutes' => 60,
+            'status' => 'a_venir',
+            'created_by' => $staff->id,
+        ]);
+        LiveSession::create([
+            'course_id' => $courseFractions->id,
+            'title' => 'Session live — Nombres et fractions',
+            'scheduled_at' => '2026-08-04 16:00:00',
+            'duration_minutes' => 45,
+            'status' => 'a_venir',
+            'created_by' => $staff->id,
+        ]);
+        LiveSession::create([
+            'course_id' => $courseVivant->id,
+            'title' => 'Session live — Le vivant et son environnement',
+            'scheduled_at' => '2026-08-06 16:00:00',
             'duration_minutes' => 45,
             'status' => 'a_venir',
             'created_by' => $staff->id,
