@@ -21,7 +21,6 @@ use App\Models\MentorshipPairing;
 use App\Models\MentorshipSession;
 use App\Models\Module;
 use App\Models\ModuleProgress;
-use App\Models\Partner;
 use App\Models\Program;
 use App\Models\Project;
 use App\Models\Report;
@@ -597,12 +596,7 @@ class DemoDataSeeder extends Seeder
         ]);
 
         // --- Partners / testimonials / faqs -------------------------------
-        foreach ([
-            'Fondation Numérique', 'Institut des Sciences Ouest', 'Coalition STIM Afrique',
-            'Fonds Jeunes Talents', 'Réseau Femmes Ingénieures', 'Agence du Numérique',
-        ] as $i => $name) {
-            Partner::create(['name' => $name, 'order' => $i]);
-        }
+        $this->call(PartnerSeeder::class);
 
         Testimonial::create([
             'name' => 'Aïcha D.',
