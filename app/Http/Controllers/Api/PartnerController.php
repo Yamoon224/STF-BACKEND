@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use OpenApi\Attributes as OA;
 
 class PartnerController extends Controller
@@ -24,16 +25,20 @@ class PartnerController extends Controller
     #[OA\Post(
         path: '/partners',
         summary: 'Ajouter un partenaire',
+        description: 'Le logo est optionnel.',
         security: [['bearerAuth' => []]],
         tags: ['Partenaires'],
         requestBody: new OA\RequestBody(
             required: true,
-            content: new OA\JsonContent(required: ['name'], properties: [
-                new OA\Property(property: 'name', type: 'string'),
-                new OA\Property(property: 'logo_path', type: 'string', nullable: true),
-                new OA\Property(property: 'url', type: 'string', format: 'uri', nullable: true),
-                new OA\Property(property: 'order', type: 'integer', minimum: 0, nullable: true),
-            ])
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(type: 'object', required: ['name'], properties: [
+                    new OA\Property(property: 'name', type: 'string'),
+                    new OA\Property(property: 'logo', type: 'string', format: 'binary', nullable: true),
+                    new OA\Property(property: 'url', type: 'string', format: 'uri', nullable: true),
+                    new OA\Property(property: 'order', type: 'integer', minimum: 0, nullable: true),
+                ])
+            )
         ),
         responses: [
             new OA\Response(response: 201, description: 'Créé', content: new OA\JsonContent(ref: '#/components/schemas/Partner')),
@@ -44,12 +49,22 @@ class PartnerController extends Controller
     {
         abort_unless($request->user()->can('cms.manage'), 403);
 
+        if ($request->input('url') === '') {
+            $request->merge(['url' => null]);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'logo_path' => ['nullable', 'string'],
+            'logo' => ['nullable', 'image', 'max:2048'],
             'url' => ['nullable', 'url'],
             'order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        unset($data['logo']);
+
+        if ($request->hasFile('logo')) {
+            $data['logo_path'] = $request->file('logo')->store('partners', 'public');
+        }
 
         return response()->json(Partner::create($data), 201);
     }
@@ -57,15 +72,20 @@ class PartnerController extends Controller
     #[OA\Patch(
         path: '/partners/{partner}',
         summary: 'Modifier un partenaire',
+        description: "Le logo est optionnel. Envoyer `remove_logo=1` pour retirer le logo existant sans en fournir un nouveau. Multipart requiert `_method=PATCH` avec une requête POST.",
         security: [['bearerAuth' => []]],
         tags: ['Partenaires'],
         parameters: [new OA\PathParameter(name: 'partner', schema: new OA\Schema(type: 'integer'))],
-        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
-            new OA\Property(property: 'name', type: 'string'),
-            new OA\Property(property: 'logo_path', type: 'string', nullable: true),
-            new OA\Property(property: 'url', type: 'string', format: 'uri', nullable: true),
-            new OA\Property(property: 'order', type: 'integer', minimum: 0, nullable: true),
-        ])),
+        requestBody: new OA\RequestBody(content: new OA\MediaType(
+            mediaType: 'multipart/form-data',
+            schema: new OA\Schema(type: 'object', properties: [
+                new OA\Property(property: 'name', type: 'string'),
+                new OA\Property(property: 'logo', type: 'string', format: 'binary', nullable: true),
+                new OA\Property(property: 'remove_logo', type: 'boolean', nullable: true),
+                new OA\Property(property: 'url', type: 'string', format: 'uri', nullable: true),
+                new OA\Property(property: 'order', type: 'integer', minimum: 0, nullable: true),
+            ])
+        )),
         responses: [
             new OA\Response(response: 200, description: 'Modifié', content: new OA\JsonContent(ref: '#/components/schemas/Partner')),
             new OA\Response(response: 403, description: "Permission `cms.manage` requise"),
@@ -75,12 +95,31 @@ class PartnerController extends Controller
     {
         abort_unless($request->user()->can('cms.manage'), 403);
 
+        if ($request->input('url') === '') {
+            $request->merge(['url' => null]);
+        }
+
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'logo_path' => ['nullable', 'string'],
+            'logo' => ['nullable', 'image', 'max:2048'],
+            'remove_logo' => ['nullable', 'boolean'],
             'url' => ['nullable', 'url'],
             'order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        unset($data['logo'], $data['remove_logo']);
+
+        if ($request->hasFile('logo')) {
+            if ($partner->logo_path) {
+                Storage::disk('public')->delete($partner->logo_path);
+            }
+            $data['logo_path'] = $request->file('logo')->store('partners', 'public');
+        } elseif ($request->boolean('remove_logo')) {
+            if ($partner->logo_path) {
+                Storage::disk('public')->delete($partner->logo_path);
+            }
+            $data['logo_path'] = null;
+        }
 
         $partner->update($data);
 
@@ -101,6 +140,10 @@ class PartnerController extends Controller
     public function destroy(Request $request, Partner $partner)
     {
         abort_unless($request->user()->can('cms.manage'), 403);
+
+        if ($partner->logo_path) {
+            Storage::disk('public')->delete($partner->logo_path);
+        }
 
         $partner->delete();
 

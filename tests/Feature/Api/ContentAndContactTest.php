@@ -6,6 +6,8 @@ use App\Models\CmsPage;
 use App\Models\Faq;
 use App\Models\Partner;
 use App\Models\Testimonial;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -77,6 +79,49 @@ class ContentAndContactTest extends TestCase
 
         Sanctum::actingAs($this->makeUser('staff'), ['*']);
         $this->postJson('/api/partners', ['name' => 'Nouveau'])->assertCreated();
+    }
+
+    public function test_partner_logo_is_optional_and_can_be_uploaded_replaced_and_removed(): void
+    {
+        Storage::fake('public');
+        Sanctum::actingAs($this->makeUser('staff'), ['*']);
+
+        $created = $this->post('/api/partners', [
+            'name' => 'Fondation Numérique',
+            'logo' => UploadedFile::fake()->image('logo.png'),
+        ])->assertCreated()->json();
+
+        $this->assertNotNull($created['logo_path']);
+        $this->assertNotNull($created['logo_url']);
+        Storage::disk('public')->assertExists($created['logo_path']);
+
+        $partner = Partner::find($created['id']);
+        $originalPath = $partner->logo_path;
+
+        $replaced = $this->post("/api/partners/{$partner->id}", [
+            '_method' => 'PATCH',
+            'logo' => UploadedFile::fake()->image('new-logo.png'),
+        ])->assertOk()->json();
+
+        Storage::disk('public')->assertMissing($originalPath);
+        Storage::disk('public')->assertExists($replaced['logo_path']);
+
+        $this->patchJson("/api/partners/{$partner->id}", ['remove_logo' => true])
+            ->assertOk()
+            ->assertJsonPath('logo_path', null)
+            ->assertJsonPath('logo_url', null);
+
+        Storage::disk('public')->assertMissing($replaced['logo_path']);
+    }
+
+    public function test_partner_can_be_created_without_a_logo(): void
+    {
+        Sanctum::actingAs($this->makeUser('staff'), ['*']);
+
+        $this->postJson('/api/partners', ['name' => 'Sans logo'])
+            ->assertCreated()
+            ->assertJsonPath('logo_path', null)
+            ->assertJsonPath('logo_url', null);
     }
 
     public function test_anyone_can_submit_a_contact_message(): void
