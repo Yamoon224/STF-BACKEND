@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\MatchingController;
 use App\Http\Controllers\Api\MentorshipPairingController;
 use App\Http\Controllers\Api\MentorshipSessionController;
 use App\Http\Controllers\Api\ModuleController;
+use App\Http\Controllers\Api\PageSectionController;
 use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\ProjectController;
@@ -30,6 +31,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SecuritySettingsController;
 use App\Http\Controllers\Api\SessionNoteController;
+use App\Http\Controllers\Api\SiteSettingController;
 use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\TestimonialController;
@@ -62,6 +64,8 @@ Route::get('cms/pages', [CmsPageController::class, 'index']);
 Route::get('cms/pages/{slug}', [CmsPageController::class, 'show']);
 Route::get('stats/impact', [StatsController::class, 'impact']);
 Route::post('contact', [ContactMessageController::class, 'store']);
+Route::get('site-settings', [SiteSettingController::class, 'index']);
+Route::get('page-sections', [PageSectionController::class, 'index']);
 
 // --- Cours de renforcement, labo virtuel & sessions live (parcours public niveau → matière) ---
 Route::get('levels', [LevelController::class, 'index']);
@@ -179,6 +183,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('faqs', [FaqController::class, 'store'])->middleware('permission:cms.manage');
     Route::patch('faqs/{faq}', [FaqController::class, 'update'])->middleware('permission:cms.manage');
     Route::delete('faqs/{faq}', [FaqController::class, 'destroy'])->middleware('permission:cms.manage');
+    Route::patch('site-settings', [SiteSettingController::class, 'update'])->middleware('permission:cms.manage');
+    Route::patch('page-sections/{pageSection}', [PageSectionController::class, 'update'])->middleware('permission:cms.manage');
 
     // Backoffice dashboard
     Route::get('dashboard/kpis', [DashboardController::class, 'kpis'])->middleware('permission:users.view');

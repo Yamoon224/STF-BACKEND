@@ -597,6 +597,7 @@ class DemoDataSeeder extends Seeder
 
         // --- Partners / testimonials / faqs -------------------------------
         $this->call(PartnerSeeder::class);
+        $this->call(SiteContentSeeder::class);
 
         Testimonial::create([
             'name' => 'Aïcha D.',
