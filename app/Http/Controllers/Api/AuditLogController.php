@@ -16,7 +16,7 @@ class AuditLogController extends Controller
         tags: ["Journaux d'audit"],
         parameters: [new OA\QueryParameter(name: 'actor_id', schema: new OA\Schema(type: 'integer'))],
         responses: [
-            new OA\Response(response: 200, description: 'Page paginée (30/page)', content: new OA\JsonContent(properties: [
+            new OA\Response(response: 200, description: 'Page paginée (10/page)', content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/AuditLog')),
             ])),
             new OA\Response(response: 403, description: "Permission `audit-logs.view` requise"),
@@ -28,6 +28,6 @@ class AuditLogController extends Controller
             ->with('actor')
             ->when($request->query('actor_id'), fn ($q, $id) => $q->where('actor_id', $id))
             ->orderByDesc('created_at')
-            ->paginate(30);
+            ->paginate(10);
     }
 }
