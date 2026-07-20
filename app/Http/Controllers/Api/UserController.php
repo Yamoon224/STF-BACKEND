@@ -25,7 +25,7 @@ class UserController extends Controller
             new OA\QueryParameter(name: 'search', description: 'Recherche sur le nom ou l\'email', schema: new OA\Schema(type: 'string')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Page paginée (20/page)', content: new OA\JsonContent(properties: [
+            new OA\Response(response: 200, description: 'Page paginée (10/page)', content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/User')),
             ])),
             new OA\Response(response: 403, description: "Permission `users.view` requise"),
@@ -42,7 +42,7 @@ class UserController extends Controller
                     ->orWhere('email', 'like', "%{$search}%"));
             })
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(10);
     }
 
     #[OA\Get(
@@ -122,6 +122,7 @@ class UserController extends Controller
         parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
         requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
             new OA\Property(property: 'name', type: 'string'),
+            new OA\Property(property: 'email', type: 'string', format: 'email'),
             new OA\Property(property: 'country', type: 'string', nullable: true),
             new OA\Property(property: 'phone', type: 'string', nullable: true),
             new OA\Property(property: 'locale', type: 'string', maxLength: 5),
@@ -129,12 +130,14 @@ class UserController extends Controller
         responses: [
             new OA\Response(response: 200, description: 'Utilisatrice mise à jour', content: new OA\JsonContent(ref: '#/components/schemas/User')),
             new OA\Response(response: 403, description: "Permission `users.manage` requise"),
+            new OA\Response(response: 422, description: 'Validation échouée', content: new OA\JsonContent(ref: '#/components/schemas/ValidationError')),
         ]
     )]
     public function update(Request $request, User $user)
     {
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
+            'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'country' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'locale' => ['sometimes', 'string', 'max:5'],

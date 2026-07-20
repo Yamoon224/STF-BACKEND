@@ -82,6 +82,28 @@ class UserManagementTest extends TestCase
         $this->postJson("/api/users/{$mentor->id}/validate-mentor")->assertStatus(422);
     }
 
+    public function test_admin_can_update_a_users_email(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+        $target = $this->makeUser('mentee', ['email' => 'ancien@example.org']);
+
+        $this->patchJson("/api/users/{$target->id}", ['email' => 'nouveau@example.org'])
+            ->assertOk()
+            ->assertJsonPath('email', 'nouveau@example.org');
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'email' => 'nouveau@example.org']);
+    }
+
+    public function test_email_update_rejects_a_duplicate(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+        $this->makeUser('mentee', ['email' => 'existant@example.org']);
+        $target = $this->makeUser('mentee', ['email' => 'a-modifier@example.org']);
+
+        $this->patchJson("/api/users/{$target->id}", ['email' => 'existant@example.org'])
+            ->assertStatus(422);
+    }
+
     public function test_admin_can_suspend_and_activate_a_user(): void
     {
         Sanctum::actingAs($this->makeUser('admin'), ['*']);
