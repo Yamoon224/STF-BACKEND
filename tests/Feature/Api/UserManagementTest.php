@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Controllers\Api\UserController;
 use App\Models\MentorProfile;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -114,5 +117,73 @@ class UserManagementTest extends TestCase
         foreach (['admin', 'staff', 'mentor', 'mentee', 'donor'] as $role) {
             $this->assertTrue($names->contains($role));
         }
+    }
+
+    public function test_invited_account_gets_the_default_password(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+
+        $this->postJson('/api/users', [
+            'name' => 'Nouvelle Collaboratrice',
+            'email' => 'collab2@example.org',
+            'role' => 'staff',
+        ])->assertCreated();
+
+        $user = User::where('email', 'collab2@example.org')->first();
+        $this->assertTrue(Hash::check(UserController::DEFAULT_PASSWORD, $user->password));
+    }
+
+    public function test_admin_can_reset_a_users_password(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+        $target = $this->makeUser('mentee', ['password' => 'un-ancien-mot-de-passe']);
+        $token = $target->createToken('test')->plainTextToken;
+
+        $response = $this->postJson("/api/users/{$target->id}/reset-password");
+
+        $response->assertOk()->assertJsonPath('password', UserController::DEFAULT_PASSWORD);
+        $this->assertTrue(Hash::check(UserController::DEFAULT_PASSWORD, $target->fresh()->password));
+        $this->assertSame(0, $target->fresh()->tokens()->count());
+    }
+
+    public function test_staff_cannot_reset_a_users_password(): void
+    {
+        Sanctum::actingAs($this->makeUser('staff'), ['*']);
+        $target = $this->makeUser('mentee');
+
+        $this->postJson("/api/users/{$target->id}/reset-password")->assertForbidden();
+    }
+
+    public function test_admin_can_soft_delete_a_user(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+        $target = $this->makeUser('mentee', ['email' => 'a-supprimer@example.org', 'password' => 'password123']);
+
+        $this->deleteJson("/api/users/{$target->id}")->assertNoContent();
+
+        $this->assertSoftDeleted('users', ['id' => $target->id]);
+        $ids = collect($this->getJson('/api/users')->json('data'))->pluck('id');
+        $this->assertFalse($ids->contains($target->id));
+
+        // A soft-deleted account can no longer authenticate.
+        $this->postJson('/api/auth/login', ['email' => 'a-supprimer@example.org', 'password' => 'password123'])
+            ->assertStatus(422);
+    }
+
+    public function test_admin_cannot_delete_their_own_account(): void
+    {
+        $admin = $this->makeUser('admin');
+        Sanctum::actingAs($admin, ['*']);
+
+        $this->deleteJson("/api/users/{$admin->id}")->assertStatus(422);
+        $this->assertDatabaseHas('users', ['id' => $admin->id, 'deleted_at' => null]);
+    }
+
+    public function test_staff_cannot_delete_a_user(): void
+    {
+        Sanctum::actingAs($this->makeUser('staff'), ['*']);
+        $target = $this->makeUser('mentee');
+
+        $this->deleteJson("/api/users/{$target->id}")->assertForbidden();
     }
 }

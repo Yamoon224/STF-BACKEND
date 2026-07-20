@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 class UserController extends Controller
 {
+    /** Default password assigned to admin-created accounts and used to reset a forgotten one. */
+    public const DEFAULT_PASSWORD = 'Sciencesaufeminin@2026';
+
     #[OA\Get(
         path: '/users',
         summary: 'Lister les utilisatrices',
@@ -62,7 +64,8 @@ class UserController extends Controller
 
     /**
      * Admin-created account (e.g. "Inviter une collaboratrice"). Unlike self-registration,
-     * this can create staff/admin accounts. The user resets their password via the normal flow.
+     * this can create staff/admin accounts. The account starts with DEFAULT_PASSWORD; the
+     * admin communicates it to the invitee, who should change it from her profile.
      */
     #[OA\Post(
         path: '/users',
@@ -99,7 +102,7 @@ class UserController extends Controller
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => Str::password(20),
+            'password' => self::DEFAULT_PASSWORD,
             'country' => $data['country'] ?? null,
             'status' => 'active',
         ]);
@@ -240,5 +243,54 @@ class UserController extends Controller
         AuditLog::record($request->user(), 'role.modifie', $user, ['role' => $data['role']]);
 
         return $user->load('roles');
+    }
+
+    #[OA\Post(
+        path: '/users/{user}/reset-password',
+        summary: 'Réinitialiser le mot de passe',
+        description: 'Réservé à l\'administratrice. Remet le mot de passe par défaut, à communiquer à l\'utilisatrice.',
+        security: [['bearerAuth' => []]],
+        tags: ['Utilisatrices'],
+        parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Mot de passe réinitialisé', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'password', type: 'string', example: 'Sciencesaufeminin@2026'),
+            ])),
+            new OA\Response(response: 403, description: "Permission `users.manage` requise"),
+        ]
+    )]
+    public function resetPassword(Request $request, User $user)
+    {
+        $user->update(['password' => self::DEFAULT_PASSWORD]);
+        $user->tokens()->delete();
+
+        AuditLog::record($request->user(), 'mot-de-passe.reinitialise', $user);
+
+        return response()->json(['password' => self::DEFAULT_PASSWORD]);
+    }
+
+    #[OA\Delete(
+        path: '/users/{user}',
+        summary: 'Supprimer un compte (suppression douce)',
+        description: "Réservé à l'administratrice. Le compte est désactivé et n'apparaît plus dans les listes, mais reste conservé pour l'audit.",
+        security: [['bearerAuth' => []]],
+        tags: ['Utilisatrices'],
+        parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 204, description: 'Compte supprimé'),
+            new OA\Response(response: 403, description: "Permission `users.manage` requise"),
+            new OA\Response(response: 422, description: 'Impossible de supprimer son propre compte'),
+        ]
+    )]
+    public function destroy(Request $request, User $user)
+    {
+        abort_if($user->is($request->user()), 422, 'Vous ne pouvez pas supprimer votre propre compte.');
+
+        $user->tokens()->delete();
+        $user->delete();
+
+        AuditLog::record($request->user(), 'compte.supprime', $user);
+
+        return response()->noContent();
     }
 }

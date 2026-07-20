@@ -89,6 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('users/{user}/activate', [UserController::class, 'activate'])->middleware('permission:users.manage');
     Route::post('users/{user}/validate-mentor', [UserController::class, 'validateMentor'])->middleware('permission:users.manage');
     Route::post('users/{user}/role', [UserController::class, 'assignRole'])->middleware('permission:settings.manage');
+    Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('permission:users.manage');
+    Route::delete('users/{user}', [UserController::class, 'destroy'])->middleware('permission:users.manage');
     Route::get('roles', [RoleController::class, 'index'])->middleware('permission:users.view');
 
     // Programs & cohorts
