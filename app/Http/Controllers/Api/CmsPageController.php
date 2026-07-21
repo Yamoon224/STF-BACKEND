@@ -137,6 +137,12 @@ class CmsPageController extends Controller
     {
         abort_unless($request->user()->can('cms.manage'), 403);
 
+        foreach (['body', 'excerpt', 'category'] as $field) {
+            if ($request->input($field) === '') {
+                $request->merge([$field => null]);
+            }
+        }
+
         $data = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'body' => ['nullable', 'string'],
