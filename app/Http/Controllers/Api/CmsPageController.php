@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CmsPage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
@@ -55,18 +56,23 @@ class CmsPageController extends Controller
     #[OA\Post(
         path: '/cms/pages',
         summary: 'Créer une page/article',
+        description: "L'image est optionnelle. Multipart requis pour joindre un fichier.",
         security: [['bearerAuth' => []]],
         tags: ['CMS'],
         requestBody: new OA\RequestBody(
             required: true,
-            content: new OA\JsonContent(required: ['title'], properties: [
-                new OA\Property(property: 'title', type: 'string'),
-                new OA\Property(property: 'type', type: 'string', enum: ['page', 'article'], default: 'page'),
-                new OA\Property(property: 'body', type: 'string', nullable: true),
-                new OA\Property(property: 'excerpt', type: 'string', nullable: true),
-                new OA\Property(property: 'category', type: 'string', nullable: true),
-                new OA\Property(property: 'status', type: 'string', enum: ['brouillon', 'publie'], default: 'brouillon'),
-            ])
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(type: 'object', required: ['title'], properties: [
+                    new OA\Property(property: 'title', type: 'string'),
+                    new OA\Property(property: 'type', type: 'string', enum: ['page', 'article'], default: 'page'),
+                    new OA\Property(property: 'body', type: 'string', nullable: true),
+                    new OA\Property(property: 'excerpt', type: 'string', nullable: true),
+                    new OA\Property(property: 'category', type: 'string', nullable: true),
+                    new OA\Property(property: 'image', type: 'string', format: 'binary', nullable: true, description: "Image d'illustration (activité, événement, actualité)."),
+                    new OA\Property(property: 'status', type: 'string', enum: ['brouillon', 'publie'], default: 'brouillon'),
+                ])
+            )
         ),
         responses: [
             new OA\Response(response: 201, description: 'Créé', content: new OA\JsonContent(ref: '#/components/schemas/CmsPage')),
@@ -83,9 +89,11 @@ class CmsPageController extends Controller
             'body' => ['nullable', 'string'],
             'excerpt' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:255'],
+            'image' => ['nullable', 'image', 'max:4096'],
             'status' => [Rule::in(['brouillon', 'publie'])],
         ]);
 
+        unset($data['image']);
         $data['slug'] = Str::slug($data['title']);
         $data['author_id'] = $request->user()->id;
         $data['type'] ??= 'page';
@@ -94,22 +102,32 @@ class CmsPageController extends Controller
             $data['published_at'] = now();
         }
 
+        if ($request->hasFile('image')) {
+            $data['image_path'] = $request->file('image')->store('cms-pages', 'public');
+        }
+
         return response()->json(CmsPage::create($data), 201);
     }
 
     #[OA\Patch(
         path: '/cms/pages/{page}',
         summary: 'Modifier une page/article',
+        description: "L'image est optionnelle. Envoyer `remove_image=1` pour retirer l'image existante sans en fournir une nouvelle. Multipart requiert `_method=PATCH` avec une requête POST.",
         security: [['bearerAuth' => []]],
         tags: ['CMS'],
         parameters: [new OA\PathParameter(name: 'page', schema: new OA\Schema(type: 'integer'))],
-        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
-            new OA\Property(property: 'title', type: 'string'),
-            new OA\Property(property: 'body', type: 'string', nullable: true),
-            new OA\Property(property: 'excerpt', type: 'string', nullable: true),
-            new OA\Property(property: 'category', type: 'string', nullable: true),
-            new OA\Property(property: 'status', type: 'string', enum: ['brouillon', 'publie']),
-        ])),
+        requestBody: new OA\RequestBody(content: new OA\MediaType(
+            mediaType: 'multipart/form-data',
+            schema: new OA\Schema(type: 'object', properties: [
+                new OA\Property(property: 'title', type: 'string'),
+                new OA\Property(property: 'body', type: 'string', nullable: true),
+                new OA\Property(property: 'excerpt', type: 'string', nullable: true),
+                new OA\Property(property: 'category', type: 'string', nullable: true),
+                new OA\Property(property: 'image', type: 'string', format: 'binary', nullable: true),
+                new OA\Property(property: 'remove_image', type: 'boolean', nullable: true),
+                new OA\Property(property: 'status', type: 'string', enum: ['brouillon', 'publie']),
+            ])
+        )),
         responses: [
             new OA\Response(response: 200, description: 'Modifié', content: new OA\JsonContent(ref: '#/components/schemas/CmsPage')),
             new OA\Response(response: 403, description: "Permission `cms.manage` requise"),
@@ -124,14 +142,30 @@ class CmsPageController extends Controller
             'body' => ['nullable', 'string'],
             'excerpt' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:255'],
+            'image' => ['nullable', 'image', 'max:4096'],
+            'remove_image' => ['nullable', 'boolean'],
             'status' => [Rule::in(['brouillon', 'publie'])],
         ]);
+
+        unset($data['image'], $data['remove_image']);
 
         if (isset($data['title'])) {
             $data['slug'] = Str::slug($data['title']);
         }
         if (($data['status'] ?? null) === 'publie' && ! $page->published_at) {
             $data['published_at'] = now();
+        }
+
+        if ($request->hasFile('image')) {
+            if ($page->image_path) {
+                Storage::disk('public')->delete($page->image_path);
+            }
+            $data['image_path'] = $request->file('image')->store('cms-pages', 'public');
+        } elseif ($request->boolean('remove_image')) {
+            if ($page->image_path) {
+                Storage::disk('public')->delete($page->image_path);
+            }
+            $data['image_path'] = null;
         }
 
         $page->update($data);
@@ -153,6 +187,10 @@ class CmsPageController extends Controller
     public function destroy(Request $request, CmsPage $page)
     {
         abort_unless($request->user()->can('cms.manage'), 403);
+
+        if ($page->image_path) {
+            Storage::disk('public')->delete($page->image_path);
+        }
 
         $page->delete();
 

@@ -673,24 +673,27 @@ class DemoDataSeeder extends Seeder
         $this->call(PartnerSeeder::class);
         $this->call(SiteContentSeeder::class);
 
+        // Témoignages réels du bilan 2016-2024 : citations directes attribuées à
+        // leur source exacte (aucune parole n'est prêtée à une personne nommée
+        // sans que le bilan ne la cite explicitement).
         Testimonial::create([
-            'name' => 'Aïcha D.',
-            'role' => 'Mentée — Programme Mentorat STIM',
-            'quote' => "Ma mentore m'a aidée à croire que l'ingénierie était possible pour moi. Aujourd'hui je suis en licence de génie informatique.",
-            'program_id' => $programs['mentorat-stim']->id,
+            'name' => 'Christelle Ogo',
+            'role' => 'Présidente & Fondatrice de STF',
+            'quote' => "Bien que nous n'ayons pas remporté de prix lors de cet événement à Johannesburg, cette expérience a été enrichissante. En tant que seule représentante de la Côte d'Ivoire et de l'Afrique francophone, j'ai constaté que nos efforts sont reconnus à l'échelle continentale et mondiale. Cette reconnaissance nous motive à intensifier nos actions et à encourager davantage de filles à s'engager dans les STIM.",
+            'program_id' => null,
             'order' => 1,
         ]);
         Testimonial::create([
-            'name' => 'Fatou K.',
-            'role' => 'Mentore bénévole, ingénieure logiciel',
-            'quote' => "Accompagner une jeune fille dans son projet STIM est l'une des expériences les plus concrètes que j'ai eues en tant que professionnelle.",
-            'program_id' => $programs['mentorat-stim']->id,
+            'name' => 'UNESCO Paris',
+            'role' => 'Reconnaissance internationale, 2023',
+            'quote' => "Christelle Ogo est une figure emblématique de la promotion des études STEM pour les jeunes filles en Côte d'Ivoire et représente le leadership scientifique d'une nouvelle génération de femmes africaines.",
+            'program_id' => null,
             'order' => 2,
         ]);
         Testimonial::create([
-            'name' => 'Mariam S.',
-            'role' => 'Mentée — Campus numérique',
-            'quote' => 'Les modules et badges m\'ont permis d\'avancer à mon rythme, même avec une connexion limitée.',
+            'name' => 'Sciences & Technologies au Féminin',
+            'role' => "Retour des participantes, Empow'Her Science Expo 2024",
+            'quote' => "Les jeunes esprits brillent de mille feux après avoir participé à l'Empow'Her Science Expo. Plus que de simples informations, ces expériences les ont nourries de confiance en leurs propres capacités à façonner l'avenir.",
             'program_id' => $programs['campus-numerique']->id,
             'order' => 3,
         ]);

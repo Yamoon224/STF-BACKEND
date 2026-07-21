@@ -14,6 +14,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'body', type: 'string', nullable: true),
         new OA\Property(property: 'excerpt', type: 'string', nullable: true),
         new OA\Property(property: 'category', type: 'string', nullable: true),
+        new OA\Property(property: 'image_path', type: 'string', nullable: true),
+        new OA\Property(property: 'image_url', type: 'string', nullable: true, description: "URL publique absolue de l'image d'illustration, ou null."),
         new OA\Property(property: 'status', type: 'string', enum: ['brouillon', 'publie']),
         new OA\Property(property: 'author_id', type: 'integer', nullable: true),
         new OA\Property(property: 'published_at', type: 'string', format: 'date-time', nullable: true),
