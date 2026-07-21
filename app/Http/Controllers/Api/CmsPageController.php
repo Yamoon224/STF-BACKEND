@@ -25,8 +25,11 @@ class CmsPageController extends Controller
     )]
     public function index(Request $request)
     {
+        $canManage = $request->user()?->can('cms.manage');
+
         return CmsPage::query()
-            ->when(! $request->user()?->can('cms.manage'), fn ($q) => $q->where('status', 'publie'))
+            ->when($canManage, fn ($q) => $q->with('images'))
+            ->when(! $canManage, fn ($q) => $q->where('status', 'publie'))
             ->when($request->query('type'), fn ($q, $type) => $q->where('type', $type))
             ->when($request->query('category'), fn ($q, $category) => $q->where('category', $category))
             ->orderByDesc('published_at')
@@ -46,7 +49,7 @@ class CmsPageController extends Controller
     )]
     public function show(Request $request, string $slug)
     {
-        $page = CmsPage::where('slug', $slug)->firstOrFail();
+        $page = CmsPage::with('images')->where('slug', $slug)->firstOrFail();
 
         abort_if($page->status !== 'publie' && ! $request->user()?->can('cms.manage'), 404);
 

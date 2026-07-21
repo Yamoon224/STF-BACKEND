@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BadgeController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\CmsPageController;
+use App\Http\Controllers\Api\CmsPageImageController;
 use App\Http\Controllers\Api\CohortController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\ConversationController;
@@ -176,6 +177,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('cms/pages', [CmsPageController::class, 'store'])->middleware('permission:cms.manage');
     Route::patch('cms/pages/{page}', [CmsPageController::class, 'update'])->middleware('permission:cms.manage');
     Route::delete('cms/pages/{page}', [CmsPageController::class, 'destroy'])->middleware('permission:cms.manage');
+    Route::post('cms/pages/{page}/images', [CmsPageImageController::class, 'store'])->middleware('permission:cms.manage');
+    Route::delete('cms/page-images/{image}', [CmsPageImageController::class, 'destroy'])->middleware('permission:cms.manage');
     Route::post('partners', [PartnerController::class, 'store'])->middleware('permission:cms.manage');
     Route::patch('partners/{partner}', [PartnerController::class, 'update'])->middleware('permission:cms.manage');
     Route::delete('partners/{partner}', [PartnerController::class, 'destroy'])->middleware('permission:cms.manage');
