@@ -160,6 +160,13 @@ class SiteContentSeeder extends Seeder
                 'description' => "De la découverte en primaire à la préparation à l'insertion professionnelle, chaque programme STF a des objectifs, une cible et des modalités de participation claires.",
             ]],
 
+            // --- bourses ---------------------------------------------------
+            ['bourses', 'hero', 'hero', [
+                'eyebrow' => 'Bourses',
+                'title' => 'Des bourses pour poursuivre vos études en STIM',
+                'description' => "STF accompagne les filles et jeunes femmes dans leurs démarches de candidature aux bourses d'études scientifiques, technologiques, d'ingénierie et mathématiques. En 2024, 155 étudiantes ont été accompagnées vers l'obtention d'une bourse.",
+            ]],
+
             // --- blog ---------------------------------------------------
             ['blog', 'hero', 'hero', [
                 'eyebrow' => 'Blog & actualités',
