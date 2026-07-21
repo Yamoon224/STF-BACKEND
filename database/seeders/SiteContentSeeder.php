@@ -98,6 +98,14 @@ class SiteContentSeeder extends Seeder
                 'title' => 'Des résultats mesurés, des rapports fiables',
                 'description' => 'STF publie des indicateurs consolidés par programme, cohorte, niveau, pays et période — pour ses équipes, ses partenaires et ses bailleurs.',
             ]],
+            ['impact', 'headline_stats', 'list_label_value', [
+                'items' => [
+                    ['label' => 'Bénéficiaires accompagnées (2016-2024)', 'value' => '11 022+'],
+                    ['label' => 'Ambassadrices STIM formées', 'value' => '300'],
+                    ['label' => 'Étudiantes accompagnées vers une bourse', 'value' => '155'],
+                    ['label' => "Villes couvertes en Côte d'Ivoire", 'value' => '8'],
+                ],
+            ]],
             ['impact', 'indicators', 'list_label_value', [
                 'items' => [
                     ['label' => 'Bénéficiaires accompagnées (2016-2024)', 'value' => '11 022'],

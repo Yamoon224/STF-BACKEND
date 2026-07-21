@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\AuditLog;
 use App\Models\Badge;
 use App\Models\Certificate;
-use App\Models\CmsPage;
 use App\Models\Cohort;
 use App\Models\Conversation;
 use App\Models\Course;
@@ -25,7 +24,6 @@ use App\Models\Program;
 use App\Models\Project;
 use App\Models\Report;
 use App\Models\Subject;
-use App\Models\Testimonial;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -57,52 +55,22 @@ class DemoDataSeeder extends Seeder
         $staff->assignRole('staff');
 
         // --- Programs ---------------------------------------------------
-        // Les 4 programmes phares réels de STF (cf. bilan 2016-2024). Les clés de
-        // tableau ci-dessous restent celles d'origine : elles ne sont que des
-        // identifiants PHP internes utilisés plus bas pour lier cohortes, modules,
-        // témoignages, etc. — elles n'apparaissent jamais côté site.
+        // Les 4 programmes phares réels de STF (cf. bilan 2016-2024) sont définis
+        // dans ProgramSeeder (seul point de vérité, rejouable en production). Les
+        // clés de tableau ci-dessous restent celles d'origine : elles ne sont que
+        // des identifiants PHP internes utilisés plus bas pour lier cohortes,
+        // modules, témoignages, etc. — elles n'apparaissent jamais côté site.
+        $this->call(ProgramSeeder::class);
         $programs = [
-            'mentorat-stim' => Program::create([
-                'name' => "Inspir'STEM ELLES",
-                'slug' => 'inspir-stem-elles',
-                'audience' => 'Collège · Lycée · Université',
-                'description' => "Programme phare de STF lancé en 2020 : sensibilisation, mentorat et accompagnement individuel des filles vers les filières scientifiques, technologiques, d'ingénierie et mathématiques (STIM).",
-                'color' => 'blue',
-                'status' => 'en_cours',
-                'cycle_start' => '2026-01-01',
-                'cycle_end' => '2026-12-31',
-            ]),
-            'decouverte-primaire' => Program::create([
-                'name' => 'STEM Challenge',
-                'slug' => 'stem-challenge',
-                'audience' => 'Collège · Lycée · Université',
-                'description' => 'Un concours qui met au défi les filles et jeunes femmes à travers des projets scientifiques et technologiques innovants, pour révéler et récompenser les talents STIM.',
-                'color' => 'orange',
-                'status' => 'en_cours',
-                'cycle_start' => '2026-02-01',
-                'cycle_end' => '2026-06-30',
-            ]),
-            'campus-numerique' => Program::create([
-                'name' => "Empow'Her Science Expo",
-                'slug' => 'empowher-science-expo',
-                'audience' => 'Lycée · Université · Grand public',
-                'description' => "La foire scientifique annuelle de STF : expositions, panels et sessions de mentorat pour mettre en lumière les réalisations des jeunes femmes en sciences. La 2e édition (novembre 2024) a réuni plus de 1500 visiteurs et 15 exposantes.",
-                'color' => 'green',
-                'status' => 'en_cours',
-                'cycle_start' => '2026-03-01',
-                'cycle_end' => '2026-08-31',
-            ]),
-            'leadership-jeunes-femmes' => Program::create([
-                'name' => 'Woman Impact Science Hub (WISH)',
-                'slug' => 'wish',
-                'audience' => 'Université · Entrepreneuses',
-                'description' => "Un incubateur qui accompagne des projets portés par des femmes dans les STIM — agriculture durable, énergies renouvelables, technologies — présentés chaque année à l'Empow'Her Science Expo.",
-                'color' => 'blue',
-                'status' => 'a_venir',
-                'cycle_start' => '2026-09-01',
-                'cycle_end' => '2026-12-31',
-            ]),
+            'mentorat-stim' => Program::where('slug', 'inspir-stem-elles')->firstOrFail(),
+            'decouverte-primaire' => Program::where('slug', 'stem-challenge')->firstOrFail(),
+            'campus-numerique' => Program::where('slug', 'empowher-science-expo')->firstOrFail(),
+            'leadership-jeunes-femmes' => Program::where('slug', 'wish')->firstOrFail(),
         ];
+        $programs['mentorat-stim']->update(['cycle_start' => '2026-01-01', 'cycle_end' => '2026-12-31']);
+        $programs['decouverte-primaire']->update(['cycle_start' => '2026-02-01', 'cycle_end' => '2026-06-30']);
+        $programs['campus-numerique']->update(['cycle_start' => '2026-03-01', 'cycle_end' => '2026-08-31']);
+        $programs['leadership-jeunes-femmes']->update(['cycle_start' => '2026-09-01', 'cycle_end' => '2026-12-31']);
 
         $cohortStim = Cohort::create([
             'program_id' => $programs['mentorat-stim']->id,
@@ -568,135 +536,16 @@ class DemoDataSeeder extends Seeder
             'resolved_at' => now()->subDays(7),
         ]);
 
-        // --- CMS content ------------------------------------------------
-        // Actualités réelles de STF (bilan 2016-2024), classées de la plus récente
-        // à la plus ancienne.
-        CmsPage::create([
-            'title' => 'Accueil',
-            'slug' => 'accueil',
-            'type' => 'page',
-            'body' => 'Bienvenue sur le site de Sciences & Technologies au Féminin (STF).',
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => now()->subMonths(8),
-        ]);
-        CmsPage::create([
-            'title' => "Empow'Her Science Expo 2024 : plus de 1500 visiteurs à Abidjan",
-            'slug' => 'empowher-science-expo-2024',
-            'type' => 'article',
-            'category' => 'Événement',
-            'excerpt' => "Du 28 au 30 novembre 2024, l'Ivoire Trade Center d'Abidjan a accueilli la 2e édition de l'Empow'Her Science Expo sur le thème « STEM pour un impact social ». Plus de 1500 visiteurs et 15 exposantes ont pris part à l'événement.",
-            'body' => "Organisée par Sciences & Technologies au Féminin, la 2e édition de l'Empow'Her Science Expo s'est tenue du 28 au 30 novembre 2024 à l'Ivoire Trade Center d'Abidjan Cocody, sur le thème « STEM pour un impact social : Révolutionner l'accès à la science, à la technologie et à l'éducation ». Quatre panels ont rythmé l'événement, aux côtés d'une exposition scientifique (agriculture durable, entomologie, énergies renouvelables) et de sessions de mentorat. Plus de 1500 visiteurs et 21 établissements secondaires et universitaires ont été touchés, pour 15 exposantes reçues dans les domaines des STIM.",
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => '2024-11-30',
-        ]);
-        CmsPage::create([
-            'title' => 'STF représente la Côte d\'Ivoire au YALI Expo et à l\'Africa Tech Festival',
-            'slug' => 'yali-expo-afrique-du-sud-2024',
-            'type' => 'article',
-            'category' => 'International',
-            'excerpt' => "Du 11 au 14 novembre 2024, la présidente de STF a représenté la Côte d'Ivoire en Afrique du Sud, présentant sa solution en énergies renouvelables devant un public panafricain.",
-            'body' => "En tant qu'Alumni du programme Young African Leaders Initiative (YALI) Dakar, la présidente du Conseil d'Administration de STF a représenté la Côte d'Ivoire lors du YALI Expo et de l'Africa Tech Festival, organisés en Afrique du Sud du 11 au 14 novembre 2024. Elle y a présenté sa solution en énergies renouvelables, mettant en avant le savoir-faire ivoirien et l'engagement de STF dans la promotion des STIM et des énergies durables.",
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => '2024-11-14',
-        ]);
-        CmsPage::create([
-            'title' => 'STF invitée à la Cité des Sciences et de l\'Industrie de Paris',
-            'slug' => 'cite-des-sciences-paris-2024',
-            'type' => 'article',
-            'category' => 'International',
-            'excerpt' => "Du 4 au 7 octobre 2024, STF a représenté la Côte d'Ivoire lors de la Francophonie en France, animant un atelier sur la durabilité écologique suivi par plus de 3500 personnes.",
-            'body' => "Invitée par la Cité des sciences et de l'industrie de Paris sur recommandation de l'ambassade de France en Côte d'Ivoire, STF a représenté le pays lors de la Francophonie en France du 3 au 6 octobre 2024. L'organisation y a animé un atelier sur la durabilité écologique durant trois jours, une activité qui a accueilli plus de 3500 personnes.",
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => '2024-10-07',
-        ]);
-        CmsPage::create([
-            'title' => 'STF récompensée du prix Impacts Jeunes 2024 par le CNJCI',
-            'slug' => 'prix-impacts-jeunes-2024',
-            'type' => 'article',
-            'category' => 'Distinction',
-            'excerpt' => "Le 14 août 2024, Sciences & Technologies au Féminin a remporté le prix de la « Meilleure activité de promotion du genre et protection des jeunes femmes », lors du concours Impacts Jeunes organisé par le CNJCI.",
-            'body' => "Le 14 août 2024, Sciences & Technologies au Féminin a remporté le prix de la « Meilleure activité de promotion du genre et protection des jeunes femmes » lors du concours Impacts Jeunes, organisé par le Conseil National des Jeunes de Côte d'Ivoire (CNJCI). Ce prix reconnaît l'engagement de l'organisation en faveur de l'empowerment des jeunes femmes dans les domaines des sciences, technologies, ingénierie et mathématiques (STEM).",
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => '2024-08-14',
-        ]);
-        CmsPage::create([
-            'title' => 'Immersion technologique en Allemagne avec la GIZ',
-            'slug' => 'immersion-technologique-allemagne-2024',
-            'type' => 'article',
-            'category' => 'International',
-            'excerpt' => "En juin 2024, STF a participé à une immersion dans les centres technologiques de Berlin, organisée avec la coopération allemande (GIZ), autour des énergies renouvelables et de l'innovation durable.",
-            'body' => "En juin 2024, STF a eu l'opportunité de participer à une immersion dans le monde de la technologie en Allemagne, organisée en coopération avec la GIZ (coopération allemande au développement). Cette mission visait à découvrir les innovations technologiques et les meilleures pratiques dans les secteurs des énergies renouvelables, de la gestion de l'énergie et de l'innovation durable, et à explorer des partenariats potentiels pour le développement durable en Afrique.",
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => '2024-06-15',
-        ]);
-        CmsPage::create([
-            'title' => 'La Reine Mathilde de Belgique échange avec de jeunes talents aux côtés de STF',
-            'slug' => 'reine-mathilde-belgique-2024',
-            'type' => 'article',
-            'category' => 'Événement',
-            'excerpt' => "En avril 2024, la Présidente du Conseil d'Administration de STF a coanimé un panel aux côtés de la Reine Mathilde de Belgique à l'Université Félix Houphouët-Boigny, sur l'éducation, les sciences et les technologies en Afrique.",
-            'body' => "Lors de la visite officielle de la Reine Mathilde de Belgique en Côte d'Ivoire en avril 2024, la Présidente du Conseil d'Administration de STF a coanimé un panel aux côtés de la Reine à l'Université Félix Houphouët-Boigny. L'événement, en présence du Ministre de l'Enseignement Supérieur et de la Recherche Scientifique et de Madame Nialé Kaba, a mis en lumière l'importance de l'éducation, des sciences et des technologies pour les femmes dans le développement de l'Afrique.",
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => '2024-04-15',
-        ]);
-        CmsPage::create([
-            'title' => 'Christelle Ogo honorée par la JCI pour son engagement scientifique',
-            'slug' => 'prix-jci-christelle-ogo-2024',
-            'type' => 'article',
-            'category' => 'Distinction',
-            'excerpt' => "Le 4 avril 2024, la présidente de STF a reçu le prix « Développement Scientifique et/ou Technologique » de la Junior Chamber International (JCI).",
-            'body' => "Le 4 avril 2024, la Présidente du Conseil d'Administration de Sciences & Technologies au Féminin a été honorée du prix dans la catégorie « Développement Scientifique et/ou Technologique » par la JCI (Junior Chamber International), en reconnaissance de son engagement exceptionnel à promouvoir l'accès des femmes et des jeunes filles aux domaines scientifiques et technologiques.",
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => '2024-04-04',
-        ]);
-        CmsPage::create([
-            'title' => "Journée des Éclaireuses : l'IRD et STF réunissent 39 lycéennes autour de la recherche",
-            'slug' => 'journee-eclaireuses-2024',
-            'type' => 'article',
-            'category' => 'Sensibilisation',
-            'excerpt' => "Le 23 mars 2024, l'Institut de Recherche pour le Développement (IRD) a organisé pour la première fois en Côte d'Ivoire la Journée des Éclaireuses, en partenariat avec STF.",
-            'body' => "Le 23 mars 2024, l'Institut de Recherche pour le Développement (IRD) a initié pour la première fois en Côte d'Ivoire la Journée des Éclaireuses, en partenariat avec STF, reconnue pour son expertise dans la sensibilisation et la formation des jeunes femmes aux STIM. Cette journée a réuni trente-neuf lycéennes issues de divers établissements, à travers des discussions en petits groupes, des ateliers thématiques et des témoignages de mentors scientifiques.",
-            'status' => 'publie',
-            'author_id' => $admin->id,
-            'published_at' => '2024-03-23',
-        ]);
-
-        // --- Partners / testimonials / faqs -------------------------------
+        // --- CMS content, partenaires, bourses, témoignages, sections de site ---
+        // Contenus réels de STF (bilan 2016-2024) : chaque source de vérité vit
+        // dans son propre seeder, rejouable indépendamment et sans danger en
+        // production (voir BlogSeeder, TestimonialSeeder, PartnerSeeder,
+        // ScholarshipSeeder, SiteContentSeeder).
         $this->call(PartnerSeeder::class);
+        $this->call(ScholarshipSeeder::class);
+        $this->call(BlogSeeder::class);
+        $this->call(TestimonialSeeder::class);
         $this->call(SiteContentSeeder::class);
-
-        // Témoignages réels du bilan 2016-2024 : citations directes attribuées à
-        // leur source exacte (aucune parole n'est prêtée à une personne nommée
-        // sans que le bilan ne la cite explicitement).
-        Testimonial::create([
-            'name' => 'Christelle Ogo',
-            'role' => 'Présidente & Fondatrice de STF',
-            'quote' => "Bien que nous n'ayons pas remporté de prix lors de cet événement à Johannesburg, cette expérience a été enrichissante. En tant que seule représentante de la Côte d'Ivoire et de l'Afrique francophone, j'ai constaté que nos efforts sont reconnus à l'échelle continentale et mondiale. Cette reconnaissance nous motive à intensifier nos actions et à encourager davantage de filles à s'engager dans les STIM.",
-            'program_id' => null,
-            'order' => 1,
-        ]);
-        Testimonial::create([
-            'name' => 'UNESCO Paris',
-            'role' => 'Reconnaissance internationale, 2023',
-            'quote' => "Christelle Ogo est une figure emblématique de la promotion des études STEM pour les jeunes filles en Côte d'Ivoire et représente le leadership scientifique d'une nouvelle génération de femmes africaines.",
-            'program_id' => null,
-            'order' => 2,
-        ]);
-        Testimonial::create([
-            'name' => 'Sciences & Technologies au Féminin',
-            'role' => "Retour des participantes, Empow'Her Science Expo 2024",
-            'quote' => "Les jeunes esprits brillent de mille feux après avoir participé à l'Empow'Her Science Expo. Plus que de simples informations, ces expériences les ont nourries de confiance en leurs propres capacités à façonner l'avenir.",
-            'program_id' => $programs['campus-numerique']->id,
-            'order' => 3,
-        ]);
 
         Faq::create(['question' => 'Qui peut devenir mentée ?', 'answer' => 'Toute fille ou jeune femme en primaire, collège, lycée ou université intéressée par les sciences, technologies, l\'ingénierie ou les mathématiques.', 'category' => 'mentorat', 'order' => 1]);
         Faq::create(['question' => 'Comment devient-on mentore ?', 'answer' => 'Les candidates créent un profil professionnel détaillé. Leur compte est ensuite examiné et validé par l\'équipe STF avant tout échange avec une mentée.', 'category' => 'mentorat', 'order' => 2]);
