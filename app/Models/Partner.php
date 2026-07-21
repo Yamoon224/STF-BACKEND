@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Storage;
 
 class Partner extends Model
 {
-    protected $fillable = ['name', 'logo_path', 'url', 'order'];
+    protected $fillable = ['name', 'logo_path', 'url', 'order', 'type'];
 
     protected $appends = ['logo_url'];
 

@@ -51,12 +51,12 @@ class SiteContentSeeder extends Seeder
             ['a-propos', 'histoire', 'text', [
                 'eyebrow' => 'Notre histoire',
                 'title' => 'Pourquoi STF existe',
-                'body' => "Face au faible nombre de filles et de femmes dans les filières scientifiques, technologiques, d'ingénierie et mathématiques, STF a été créée pour offrir un accompagnement concret : des mentores professionnelles, des expériences virtuelles adaptées et des espaces sécurisés pour progresser en confiance.",
+                'body' => "Créée en 2016 par un groupe d'étudiantes de l'Université Félix Houphouët-Boigny à Abidjan, Sciences & Technologies au Féminin (STF) est née d'une conviction simple : les filles et les jeunes femmes doivent occuper toute leur place dans les sciences, la technologie, l'ingénierie et les mathématiques (STIM). Après des campagnes de sensibilisation, des programmes de mentorat et des formations en leadership scientifique, l'association a obtenu en 2020 la reconnaissance officielle du Ministère de l'Enseignement Supérieur et de la Recherche Scientifique. Huit ans après sa création, STF a accompagné plus de 11 000 bénéficiaires à travers ses tournées nationales (SciTech-Tour, Caravane STEM for Her), ses sections universitaires et ses clubs scolaires implantés dans 8 villes de Côte d'Ivoire.",
             ]],
             ['a-propos', 'mission', 'text', [
                 'eyebrow' => 'Notre mission',
                 'title' => 'Ce que nous visons',
-                'body' => "Accompagner chaque bénéficiaire depuis la découverte des STIM jusqu'à l'insertion professionnelle, en s'appuyant sur des données fiables et un dispositif de protection strict, en particulier pour les mineures.",
+                'body' => "Conjuguer les Sciences, Technologies, Ingénierie et Mathématiques (STIM) au féminin : soutenir l'orientation académique et professionnelle des jeunes filles, renforcer chaque année les compétences de centaines de filles et femmes à travers ateliers pratiques, stages et formations certifiantes, élargir la visibilité des STIM via des événements phares comme l'Empow'Her Science Expo, et favoriser le mentorat ainsi que l'accès à des bourses d'études.",
             ]],
             ['a-propos', 'values', 'list_title_description', [
                 'items' => [
@@ -68,10 +68,10 @@ class SiteContentSeeder extends Seeder
             ]],
             ['a-propos', 'governance', 'list_role_mission', [
                 'items' => [
-                    ['role' => 'Direction / PCA', 'mission' => "Validation stratégique et arbitrage final de l'organisation."],
-                    ['role' => 'Administratrice STF', 'mission' => 'Pilotage opérationnel, sécurité et gestion des accès de la plateforme.'],
-                    ['role' => 'Responsables programmes', 'mission' => 'Conception et suivi des parcours bénéficiaires et du mentorat.'],
-                    ['role' => 'Responsable contenus', 'mission' => 'Animation éditoriale du site et cohérence de la communication.'],
+                    ['role' => 'Christelle Ogo — Présidente & Fondatrice', 'mission' => "Vision stratégique, représentation institutionnelle et internationale de STF, pilotage général de l'organisation."],
+                    ['role' => "Conseil d'Administration", 'mission' => "Armande Bahi, Arsène Adingra Kouassi, Assi Leaticia et Alexandra Kouame : validation stratégique et gouvernance de l'association."],
+                    ['role' => 'Direction Exécutive', 'mission' => "Kouadio Désiré N'Guessan, avec Uchenna Okere, Serena Djama et Andrea Dembele : pilotage opérationnel des programmes et des équipes."],
+                    ['role' => 'Coordination Nationale', 'mission' => "Marcelle Niamkey coordonne les antennes régionales de STF et anime le réseau des ambassadrices STIM à travers la Côte d'Ivoire."],
                 ],
             ]],
 
@@ -100,14 +100,14 @@ class SiteContentSeeder extends Seeder
             ]],
             ['impact', 'indicators', 'list_label_value', [
                 'items' => [
-                    ['label' => 'Mentées inscrites', 'value' => '2 400'],
-                    ['label' => 'Mentées actives', 'value' => '1 860'],
-                    ['label' => 'Mentores validées', 'value' => '180'],
-                    ['label' => 'Binômes créés', 'value' => '950'],
-                    ['label' => 'Sessions réalisées', 'value' => '6 240'],
-                    ['label' => 'Taux de rétention', 'value' => '84%'],
-                    ['label' => 'Modules complétés', 'value' => '3 100'],
-                    ['label' => 'Badges délivrés', 'value' => '1 420'],
+                    ['label' => 'Bénéficiaires accompagnées (2016-2024)', 'value' => '11 022'],
+                    ['label' => 'Filles et femmes parmi les bénéficiaires', 'value' => '75%'],
+                    ['label' => 'Étudiantes accompagnées vers une bourse', 'value' => '155'],
+                    ['label' => 'Ambassadrices STIM formées', 'value' => '300'],
+                    ['label' => "Villes couvertes en Côte d'Ivoire", 'value' => '8'],
+                    ['label' => 'Sections STF en universités', 'value' => '8'],
+                    ['label' => 'Sections en grandes écoles', 'value' => '4'],
+                    ['label' => 'Clubs STF en collèges et lycées', 'value' => '8'],
                 ],
             ]],
 
@@ -146,11 +146,11 @@ class SiteContentSeeder extends Seeder
             ['partenaires', 'hero', 'hero', [
                 'eyebrow' => 'Partenaires',
                 'title' => 'Ils rendent nos programmes possibles',
-                'description' => 'Institutions, fondations et entreprises partenaires soutiennent STF financièrement, techniquement ou en mettant à disposition des mentores.',
+                'description' => "Ministères, universités, agences des Nations Unies et entreprises soutiennent STF depuis 2016, financièrement, techniquement ou en mettant à disposition des mentores.",
             ]],
             ['partenaires', 'cta', 'text', [
                 'title' => 'Devenir partenaire de STF',
-                'body' => "Financement de bourses, mise à disposition de mentores, accès à des rapports d'impact agrégés : plusieurs formes de partenariat sont possibles.",
+                'body' => "En 2024, les contrats et partenariats ont représenté 77% des 82 920 247 FCFA reçus par STF. Financement de bourses, mise à disposition de mentores, accès à des rapports d'impact agrégés : plusieurs formes de partenariat sont possibles.",
             ]],
 
             // --- programmes ---------------------------------------------------

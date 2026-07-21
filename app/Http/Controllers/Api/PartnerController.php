@@ -37,6 +37,7 @@ class PartnerController extends Controller
                     new OA\Property(property: 'logo', type: 'string', format: 'binary', nullable: true),
                     new OA\Property(property: 'url', type: 'string', format: 'uri', nullable: true),
                     new OA\Property(property: 'order', type: 'integer', minimum: 0, nullable: true),
+                    new OA\Property(property: 'type', type: 'string', enum: ['confiance', 'partenaire'], nullable: true, description: "`confiance` : \"Ils nous font confiance\" (partenaires avec qui STF a déjà travaillé). `partenaire` : partenaires au sens large. Défaut : `confiance`."),
                 ])
             )
         ),
@@ -58,9 +59,11 @@ class PartnerController extends Controller
             'logo' => ['nullable', 'image', 'max:2048'],
             'url' => ['nullable', 'url'],
             'order' => ['nullable', 'integer', 'min:0'],
+            'type' => ['nullable', 'in:confiance,partenaire'],
         ]);
 
         unset($data['logo']);
+        $data['type'] ??= 'confiance';
 
         if ($request->hasFile('logo')) {
             $data['logo_path'] = $request->file('logo')->store('partners', 'public');
@@ -84,6 +87,7 @@ class PartnerController extends Controller
                 new OA\Property(property: 'remove_logo', type: 'boolean', nullable: true),
                 new OA\Property(property: 'url', type: 'string', format: 'uri', nullable: true),
                 new OA\Property(property: 'order', type: 'integer', minimum: 0, nullable: true),
+                new OA\Property(property: 'type', type: 'string', enum: ['confiance', 'partenaire'], nullable: true),
             ])
         )),
         responses: [
@@ -105,6 +109,7 @@ class PartnerController extends Controller
             'remove_logo' => ['nullable', 'boolean'],
             'url' => ['nullable', 'url'],
             'order' => ['nullable', 'integer', 'min:0'],
+            'type' => ['nullable', 'in:confiance,partenaire'],
         ]);
 
         unset($data['logo'], $data['remove_logo']);
