@@ -28,7 +28,7 @@ class StatsController extends Controller
     public function impact()
     {
         return [
-            'beneficiaries' => '11 022',
+            'beneficiaries' => User::role('mentee')->count(),
             'active_mentors' => MentorProfile::whereNotNull('validated_at')->count(),
             'pairings' => MentorshipPairing::count(),
             'countries' => User::whereNotNull('country')->distinct('country')->count('country'),

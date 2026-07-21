@@ -33,7 +33,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Page paginée (30/page)",
+                        "description": "Page paginée (10/page)",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -132,6 +132,11 @@
                                     },
                                     "school": {
                                         "description": "mentee uniquement",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "interests": {
+                                        "description": "mentee uniquement — domaine et métier STEM choisis, ex. « Science — Biologie »",
                                         "type": "string",
                                         "nullable": true
                                     }
@@ -636,11 +641,12 @@
                     "CMS"
                 ],
                 "summary": "Créer une page/article",
+                "description": "L'image est optionnelle. Multipart requis pour joindre un fichier.",
                 "operationId": "0c7a0d1e176efb09b5c79ba462cc06f1",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
                                     "title"
@@ -667,6 +673,12 @@
                                     },
                                     "category": {
                                         "type": "string",
+                                        "nullable": true
+                                    },
+                                    "image": {
+                                        "description": "Image d'illustration (activité, événement, actualité).",
+                                        "type": "string",
+                                        "format": "binary",
                                         "nullable": true
                                     },
                                     "status": {
@@ -776,6 +788,7 @@
                     "CMS"
                 ],
                 "summary": "Modifier une page/article",
+                "description": "L'image est optionnelle. Envoyer `remove_image=1` pour retirer l'image existante sans en fournir une nouvelle. Multipart requiert `_method=PATCH` avec une requête POST.",
                 "operationId": "da0b345f0ffb5034cb26461a726ea1e8",
                 "parameters": [
                     {
@@ -789,7 +802,7 @@
                 ],
                 "requestBody": {
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "properties": {
                                     "title": {
@@ -805,6 +818,15 @@
                                     },
                                     "category": {
                                         "type": "string",
+                                        "nullable": true
+                                    },
+                                    "image": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "remove_image": {
+                                        "type": "boolean",
                                         "nullable": true
                                     },
                                     "status": {
@@ -830,6 +852,103 @@
                                 }
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Permission `cms.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/cms/pages/{page}/images": {
+            "post": {
+                "tags": [
+                    "CMS"
+                ],
+                "summary": "Ajouter une ou plusieurs images à la galerie d'une activité/actualité",
+                "description": "Vient s'ajouter à l'image de couverture (`image`) de la page/article. Jusqu'à 10 images par envoi, 4 Mo chacune.",
+                "operationId": "7d1fdef567955eb6c5dc3fa33d9d4878",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "images"
+                                ],
+                                "properties": {
+                                    "images": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Images ajoutées",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CmsPageImage"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `cms.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/cms/page-images/{image}": {
+            "delete": {
+                "tags": [
+                    "CMS"
+                ],
+                "summary": "Retirer une image de la galerie",
+                "operationId": "bdb871ff22932f9a329dac8f8e3cd5f5",
+                "parameters": [
+                    {
+                        "name": "image",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Supprimée"
                     },
                     "403": {
                         "description": "Permission `cms.manage` requise"
@@ -1415,6 +1534,305 @@
                 ]
             }
         },
+        "/courses": {
+            "get": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Lister les cours de renforcement",
+                "description": "Public — utilisé par le parcours niveau → matière du site vitrine. Les cours `brouillon` ne sont visibles qu’avec `programs.manage`. Si authentifiée, chaque cours inclut `my_progress`.",
+                "operationId": "75403048c36d79fe464ce4716c204c61",
+                "parameters": [
+                    {
+                        "name": "level_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "subject_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cours",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Course"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Créer un cours de renforcement",
+                "operationId": "56ff5a96b473881afe594ca81aeb754b",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "level_id",
+                                    "subject_id",
+                                    "title"
+                                ],
+                                "properties": {
+                                    "level_id": {
+                                        "type": "integer"
+                                    },
+                                    "subject_id": {
+                                        "type": "integer"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "order": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "default": "brouillon",
+                                        "enum": [
+                                            "brouillon",
+                                            "publie"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Créé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Course"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/courses/{course}": {
+            "get": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Consulter un cours de renforcement (avec labo virtuel et sessions live)",
+                "description": "Public.",
+                "operationId": "10f1a3f466f9f189b72f4faa087511d1",
+                "parameters": [
+                    {
+                        "name": "course",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cours",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Course"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Supprimer un cours de renforcement",
+                "operationId": "b3c52c7b9051fe701b0428f229852379",
+                "parameters": [
+                    {
+                        "name": "course",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Supprimé"
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Modifier un cours de renforcement",
+                "operationId": "6d2ef847962a3c6b7704ab479f869670",
+                "parameters": [
+                    {
+                        "name": "course",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "level_id": {
+                                        "type": "integer"
+                                    },
+                                    "subject_id": {
+                                        "type": "integer"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "order": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "brouillon",
+                                            "publie"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Modifié",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Course"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/courses/{course}/progress": {
+            "post": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Mettre à jour ma progression sur un cours de renforcement",
+                "description": "201 la première fois (création), 200 ensuite (mise à jour).",
+                "operationId": "13263025015a34fa0c284b35b0c9b6f7",
+                "parameters": [
+                    {
+                        "name": "course",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "progress"
+                                ],
+                                "properties": {
+                                    "progress": {
+                                        "type": "integer",
+                                        "maximum": 100,
+                                        "minimum": 0
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Progression mise à jour"
+                    },
+                    "201": {
+                        "description": "Progression créée"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/dashboard/kpis": {
             "get": {
                 "tags": [
@@ -1536,6 +1954,276 @@
                     },
                     "403": {
                         "description": "Permission `users.view` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/experiments": {
+            "get": {
+                "tags": [
+                    "Labo virtuel"
+                ],
+                "summary": "Lister les expériences du labo virtuel",
+                "description": "Public. Les expériences `brouillon` ne sont visibles qu’avec `programs.manage`.",
+                "operationId": "2687a0a783d4675b85e291384f02b0ec",
+                "parameters": [
+                    {
+                        "name": "subject_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "level_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "course_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Expériences",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Experiment"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Labo virtuel"
+                ],
+                "summary": "Créer une expérience du labo virtuel",
+                "operationId": "e09c0742bb163aa4fa35597b479a38df",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "subject_id",
+                                    "title"
+                                ],
+                                "properties": {
+                                    "subject_id": {
+                                        "type": "integer"
+                                    },
+                                    "level_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "course_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "instructions": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "order": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "default": "brouillon",
+                                        "enum": [
+                                            "brouillon",
+                                            "publie"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Créée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Experiment"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/experiments/{experiment}": {
+            "get": {
+                "tags": [
+                    "Labo virtuel"
+                ],
+                "summary": "Consulter une expérience du labo virtuel",
+                "description": "Public.",
+                "operationId": "292b017fa1ab26fec09c2fcd7fc5f3c4",
+                "parameters": [
+                    {
+                        "name": "experiment",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Expérience",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Experiment"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Labo virtuel"
+                ],
+                "summary": "Supprimer une expérience du labo virtuel",
+                "operationId": "d462c95e3ae358f6dd5f2e4a00256977",
+                "parameters": [
+                    {
+                        "name": "experiment",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Supprimée"
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Labo virtuel"
+                ],
+                "summary": "Modifier une expérience du labo virtuel",
+                "operationId": "d366e29226b14732bac77a624e9f755b",
+                "parameters": [
+                    {
+                        "name": "experiment",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "subject_id": {
+                                        "type": "integer"
+                                    },
+                                    "level_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "course_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "instructions": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "order": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "brouillon",
+                                            "publie"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Modifiée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Experiment"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
                     }
                 },
                 "security": [
@@ -2433,6 +3121,271 @@
                 ]
             }
         },
+        "/levels": {
+            "get": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Lister les niveaux scolaires (cours de renforcement)",
+                "description": "Public. Les 4 paliers STF : 6e & 5e, 4e & 3e, 2nde & 1re, Terminale C & D.",
+                "operationId": "941e4504443625e4efb7de81f8f5bf7c",
+                "responses": {
+                    "200": {
+                        "description": "Niveaux",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Level"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/live-sessions": {
+            "get": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Lister les sessions live des cours de renforcement",
+                "description": "Public, triées par date.",
+                "operationId": "d7a68c25b9347ba5a0595ac0bb9538b4",
+                "parameters": [
+                    {
+                        "name": "course_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Sessions live",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/LiveSession"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Programmer une session live",
+                "operationId": "aed20c8f069868dbf6570e63e84692d5",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "course_id",
+                                    "title",
+                                    "scheduled_at"
+                                ],
+                                "properties": {
+                                    "course_id": {
+                                        "type": "integer"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "scheduled_at": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "duration_minutes": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 1
+                                    },
+                                    "meeting_link": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "default": "a_venir",
+                                        "enum": [
+                                            "a_venir",
+                                            "en_cours",
+                                            "termine"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Créée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LiveSession"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/live-sessions/{liveSession}": {
+            "get": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Consulter une session live",
+                "description": "Public.",
+                "operationId": "7eea4c7360d99ed787092838d74fd53d",
+                "parameters": [
+                    {
+                        "name": "liveSession",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Session live",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LiveSession"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Supprimer une session live",
+                "operationId": "60583eb8bfbc8ad53e0e0e44d96c88dd",
+                "parameters": [
+                    {
+                        "name": "liveSession",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Supprimée"
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Modifier une session live",
+                "operationId": "6c54da2e8a43d26cbd31a75c45675950",
+                "parameters": [
+                    {
+                        "name": "liveSession",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "scheduled_at": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "duration_minutes": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 1
+                                    },
+                                    "meeting_link": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "a_venir",
+                                            "en_cours",
+                                            "termine"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Modifiée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LiveSession"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `programs.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/matching/suggestions": {
             "get": {
                 "tags": [
@@ -3308,6 +4261,98 @@
                 ]
             }
         },
+        "/page-sections": {
+            "get": {
+                "tags": [
+                    "Sections de page"
+                ],
+                "summary": "Lister les sections de contenu éditables des pages statiques",
+                "description": "Public.",
+                "operationId": "d437bbadd29a4490c02243ecd8de68f2",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "example": "a-propos"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Sections",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PageSection"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/page-sections/{pageSection}": {
+            "patch": {
+                "tags": [
+                    "Sections de page"
+                ],
+                "summary": "Modifier le contenu d'une section de page",
+                "operationId": "88901ba7eec1c85ad97ac951a6981cee",
+                "parameters": [
+                    {
+                        "name": "pageSection",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "payload"
+                                ],
+                                "properties": {
+                                    "payload": {
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Modifiée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageSection"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `cms.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/partners": {
             "get": {
                 "tags": [
@@ -3337,11 +4382,12 @@
                     "Partenaires"
                 ],
                 "summary": "Ajouter un partenaire",
+                "description": "Le logo est optionnel.",
                 "operationId": "b20282d82456b052dba19446c8661b82",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
                                     "name"
@@ -3350,8 +4396,9 @@
                                     "name": {
                                         "type": "string"
                                     },
-                                    "logo_path": {
+                                    "logo": {
                                         "type": "string",
+                                        "format": "binary",
                                         "nullable": true
                                     },
                                     "url": {
@@ -3363,6 +4410,15 @@
                                         "type": "integer",
                                         "nullable": true,
                                         "minimum": 0
+                                    },
+                                    "type": {
+                                        "description": "`confiance` : \"Ils nous font confiance\" (partenaires avec qui STF a déjà travaillé). `partenaire` : partenaires au sens large. Défaut : `confiance`.",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "enum": [
+                                            "confiance",
+                                            "partenaire"
+                                        ]
                                     }
                                 },
                                 "type": "object"
@@ -3428,6 +4484,7 @@
                     "Partenaires"
                 ],
                 "summary": "Modifier un partenaire",
+                "description": "Le logo est optionnel. Envoyer `remove_logo=1` pour retirer le logo existant sans en fournir un nouveau. Multipart requiert `_method=PATCH` avec une requête POST.",
                 "operationId": "855e66afb3ed9dc54ac26195930f09c9",
                 "parameters": [
                     {
@@ -3441,14 +4498,19 @@
                 ],
                 "requestBody": {
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "properties": {
                                     "name": {
                                         "type": "string"
                                     },
-                                    "logo_path": {
+                                    "logo": {
                                         "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "remove_logo": {
+                                        "type": "boolean",
                                         "nullable": true
                                     },
                                     "url": {
@@ -3460,6 +4522,14 @@
                                         "type": "integer",
                                         "nullable": true,
                                         "minimum": 0
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "enum": [
+                                            "confiance",
+                                            "partenaire"
+                                        ]
                                     }
                                 },
                                 "type": "object"
@@ -4378,6 +5448,259 @@
                 ]
             }
         },
+        "/scholarships": {
+            "get": {
+                "tags": [
+                    "Bourses"
+                ],
+                "summary": "Lister les bourses",
+                "description": "Public.",
+                "operationId": "fb80eabf509b2b011f7bb7255781a7a3",
+                "responses": {
+                    "200": {
+                        "description": "Bourses",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Scholarship"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Bourses"
+                ],
+                "summary": "Ajouter une bourse",
+                "description": "L'image est optionnelle.",
+                "operationId": "b8240244118d03b7fb5db51fa4254539",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "title"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Bourse d'excellence STF"
+                                    },
+                                    "provider": {
+                                        "description": "Organisme qui octroie la bourse.",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "amount": {
+                                        "type": "string",
+                                        "example": "500 000 FCFA",
+                                        "nullable": true
+                                    },
+                                    "audience": {
+                                        "type": "string",
+                                        "example": "Licence · Master",
+                                        "nullable": true
+                                    },
+                                    "deadline": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
+                                    "application_url": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "nullable": true
+                                    },
+                                    "image": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "enum": [
+                                            "ouverte",
+                                            "fermee",
+                                            "a_venir"
+                                        ]
+                                    },
+                                    "order": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Créée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Scholarship"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `cms.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/scholarships/{scholarship}": {
+            "delete": {
+                "tags": [
+                    "Bourses"
+                ],
+                "summary": "Supprimer une bourse",
+                "operationId": "46a9110c646a43525cf1b0d14f91ebba",
+                "parameters": [
+                    {
+                        "name": "scholarship",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Supprimée"
+                    },
+                    "403": {
+                        "description": "Permission `cms.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Bourses"
+                ],
+                "summary": "Modifier une bourse",
+                "description": "L'image est optionnelle. Envoyer `remove_image=1` pour retirer l'image existante sans en fournir une nouvelle. Multipart requiert `_method=PATCH` avec une requête POST.",
+                "operationId": "039dcf31ec74dcd2e459274fc45f252a",
+                "parameters": [
+                    {
+                        "name": "scholarship",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "provider": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "amount": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "audience": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "deadline": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
+                                    "application_url": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "nullable": true
+                                    },
+                                    "image": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "remove_image": {
+                                        "type": "boolean",
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "enum": [
+                                            "ouverte",
+                                            "fermee",
+                                            "a_venir"
+                                        ]
+                                    },
+                                    "order": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Modifiée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Scholarship"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `cms.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/auth/mfa/setup": {
             "post": {
                 "tags": [
@@ -4791,6 +6114,78 @@
                 ]
             }
         },
+        "/site-settings": {
+            "get": {
+                "tags": [
+                    "Paramètres du site"
+                ],
+                "summary": "Lister les paramètres du site (contact, réseaux sociaux)",
+                "description": "Public. Retourne un objet clé/valeur.",
+                "operationId": "75552d9df8ba445d7004bfb47eb72106",
+                "responses": {
+                    "200": {
+                        "description": "Paramètres",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Paramètres du site"
+                ],
+                "summary": "Modifier les paramètres du site",
+                "description": "Met à jour une ou plusieurs clés connues (adresse, téléphone, emails, réseaux sociaux).",
+                "operationId": "67dd447dca81a15090b9a457c7ac5236",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Paramètres mis à jour",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `cms.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/stats/impact": {
             "get": {
                 "tags": [
@@ -4820,6 +6215,31 @@
                                         }
                                     },
                                     "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/subjects": {
+            "get": {
+                "tags": [
+                    "Cours de renforcement"
+                ],
+                "summary": "Lister les matières (cours de renforcement)",
+                "description": "Public. STF est purement scientifique : Mathématiques, Physique, Chimie, SVT.",
+                "operationId": "2a7ea80416f2d2d5be939b5287b03bc0",
+                "responses": {
+                    "200": {
+                        "description": "Matières",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Subject"
+                                    }
                                 }
                             }
                         }
@@ -5068,7 +6488,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Page paginée (20/page)",
+                        "description": "Page paginée (10/page)",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -5100,7 +6520,7 @@
                     "Utilisatrices"
                 ],
                 "summary": "Créer un compte (invitation) — peut créer admin/staff",
-                "description": "Admin-created account (e.g. \"Inviter une collaboratrice\"). Unlike self-registration,\nthis can create staff/admin accounts. The user resets their password via the normal flow.",
+                "description": "Admin-created account (e.g. \"Inviter une collaboratrice\"). Unlike self-registration,\nthis can create staff/admin accounts. The account starts with DEFAULT_PASSWORD; the\nadmin communicates it to the invitee, who should change it from her profile.",
                 "operationId": "262eb5ca1fdea354023c0a8870442c1e",
                 "requestBody": {
                     "required": true,
@@ -5213,6 +6633,40 @@
                     }
                 ]
             },
+            "delete": {
+                "tags": [
+                    "Utilisatrices"
+                ],
+                "summary": "Supprimer un compte (suppression douce)",
+                "description": "Réservé à l'administratrice. Le compte est désactivé et n'apparaît plus dans les listes, mais reste conservé pour l'audit.",
+                "operationId": "371ba09bb6d4a95792dd93040f8812b3",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Compte supprimé"
+                    },
+                    "403": {
+                        "description": "Permission `users.manage` requise"
+                    },
+                    "422": {
+                        "description": "Impossible de supprimer son propre compte"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "patch": {
                 "tags": [
                     "Utilisatrices"
@@ -5236,6 +6690,10 @@
                                 "properties": {
                                     "name": {
                                         "type": "string"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email"
                                     },
                                     "country": {
                                         "type": "string",
@@ -5268,6 +6726,16 @@
                     },
                     "403": {
                         "description": "Permission `users.manage` requise"
+                    },
+                    "422": {
+                        "description": "Validation échouée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -5461,6 +6929,52 @@
                     }
                 ]
             }
+        },
+        "/users/{user}/reset-password": {
+            "post": {
+                "tags": [
+                    "Utilisatrices"
+                ],
+                "summary": "Réinitialiser le mot de passe",
+                "description": "Réservé à l'administratrice. Remet le mot de passe par défaut, à communiquer à l'utilisatrice.",
+                "operationId": "453481b010b41af74b8e9131f4e037bf",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Mot de passe réinitialisé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "password": {
+                                            "type": "string",
+                                            "example": "Sciencesaufeminin@2026"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission `users.manage` requise"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -5591,6 +7105,31 @@
                 },
                 "type": "object"
             },
+            "CmsPageImage": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "cms_page_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "image_path": {
+                        "type": "string"
+                    },
+                    "image_url": {
+                        "description": "URL publique absolue.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "order": {
+                        "type": "integer",
+                        "example": 0
+                    }
+                },
+                "type": "object"
+            },
             "CmsPage": {
                 "properties": {
                     "id": {
@@ -5622,6 +7161,23 @@
                     },
                     "category": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "image_path": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "image_url": {
+                        "description": "URL publique absolue de l'image de couverture, ou null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "images": {
+                        "description": "Galerie d'images complémentaires (chargée sur `GET /cms/pages/{slug}` et pour les gestionnaires CMS).",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CmsPageImage"
+                        },
                         "nullable": true
                     },
                     "status": {
@@ -5748,6 +7304,92 @@
                         "items": {
                             "$ref": "#/components/schemas/Message"
                         }
+                    }
+                },
+                "type": "object"
+            },
+            "Course": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "level_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "subject_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Fonctions et dérivées"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "order": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "brouillon",
+                            "publie"
+                        ]
+                    },
+                    "my_progress": {
+                        "description": "Présent uniquement pour une requête authentifiée",
+                        "type": "integer",
+                        "example": 40,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Experiment": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "subject_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "level_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "course_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Dosage acide-base"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "order": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "brouillon",
+                            "publie"
+                        ]
                     }
                 },
                 "type": "object"
@@ -5910,6 +7552,64 @@
                     "members_count": {
                         "type": "integer",
                         "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Level": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "6e & 5e"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "6e-5e"
+                    },
+                    "order": {
+                        "type": "integer",
+                        "example": 1
+                    }
+                },
+                "type": "object"
+            },
+            "LiveSession": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "course_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Session de révision — Fonctions et dérivées"
+                    },
+                    "scheduled_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "duration_minutes": {
+                        "type": "integer",
+                        "example": 60
+                    },
+                    "meeting_link": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "a_venir",
+                            "en_cours",
+                            "termine"
+                        ]
                     }
                 },
                 "type": "object"
@@ -6227,6 +7927,34 @@
                 },
                 "type": "object"
             },
+            "PageSection": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "page_key": {
+                        "type": "string",
+                        "example": "a-propos"
+                    },
+                    "section_key": {
+                        "type": "string",
+                        "example": "hero"
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "hero"
+                    },
+                    "payload": {
+                        "type": "object"
+                    },
+                    "order": {
+                        "type": "integer",
+                        "example": 0
+                    }
+                },
+                "type": "object"
+            },
             "Partner": {
                 "properties": {
                     "id": {
@@ -6241,6 +7969,11 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "logo_url": {
+                        "description": "URL publique absolue du logo, ou null.",
+                        "type": "string",
+                        "nullable": true
+                    },
                     "url": {
                         "type": "string",
                         "nullable": true
@@ -6248,6 +7981,15 @@
                     "order": {
                         "type": "integer",
                         "example": 0
+                    },
+                    "type": {
+                        "description": "`confiance` : \"Ils nous font confiance\" (partenaires avec qui STF a déjà travaillé). `partenaire` : partenaires au sens large (ex. AFD, CEDD).",
+                        "type": "string",
+                        "example": "confiance",
+                        "enum": [
+                            "confiance",
+                            "partenaire"
+                        ]
                     }
                 },
                 "type": "object"
@@ -6523,6 +8265,69 @@
                 },
                 "type": "object"
             },
+            "Scholarship": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Bourse d'excellence STF"
+                    },
+                    "provider": {
+                        "description": "Organisme qui octroie la bourse.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "amount": {
+                        "type": "string",
+                        "example": "500 000 FCFA",
+                        "nullable": true
+                    },
+                    "audience": {
+                        "type": "string",
+                        "example": "Licence · Master",
+                        "nullable": true
+                    },
+                    "deadline": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "application_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "image_path": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "image_url": {
+                        "description": "URL publique absolue de la bourse, ou null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "ouverte",
+                        "enum": [
+                            "ouverte",
+                            "fermee",
+                            "a_venir"
+                        ]
+                    },
+                    "order": {
+                        "type": "integer",
+                        "example": 0
+                    }
+                },
+                "type": "object"
+            },
             "SessionNote": {
                 "properties": {
                     "id": {
@@ -6554,6 +8359,23 @@
                             }
                         ],
                         "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Subject": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Mathématiques"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "mathematiques"
                     }
                 },
                 "type": "object"
@@ -6815,6 +8637,26 @@
         {
             "name": "Statistiques",
             "description": "Statistiques d'impact publiques"
+        },
+        {
+            "name": "Cours de renforcement",
+            "description": "Cours de renforcement"
+        },
+        {
+            "name": "Labo virtuel",
+            "description": "Labo virtuel"
+        },
+        {
+            "name": "Sections de page",
+            "description": "Sections de page"
+        },
+        {
+            "name": "Bourses",
+            "description": "Bourses"
+        },
+        {
+            "name": "Paramètres du site",
+            "description": "Paramètres du site"
         }
     ]
 }
