@@ -92,7 +92,7 @@ class CmsPageController extends Controller
             'body' => ['nullable', 'string'],
             'excerpt' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:255'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'image', 'max:8192'],
             'status' => [Rule::in(['brouillon', 'publie'])],
         ]);
 
@@ -151,7 +151,7 @@ class CmsPageController extends Controller
             'body' => ['nullable', 'string'],
             'excerpt' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:255'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'image', 'max:8192'],
             'remove_image' => ['nullable', 'boolean'],
             'status' => [Rule::in(['brouillon', 'publie'])],
         ]);

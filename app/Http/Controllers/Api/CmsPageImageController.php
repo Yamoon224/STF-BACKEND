@@ -14,7 +14,7 @@ class CmsPageImageController extends Controller
     #[OA\Post(
         path: '/cms/pages/{page}/images',
         summary: "Ajouter une ou plusieurs images à la galerie d'une activité/actualité",
-        description: "Vient s'ajouter à l'image de couverture (`image`) de la page/article. Jusqu'à 10 images par envoi, 4 Mo chacune.",
+        description: "Vient s'ajouter à l'image de couverture (`image`) de la page/article. Jusqu'à 10 images par envoi, 8 Mo chacune.",
         security: [['bearerAuth' => []]],
         tags: ['CMS'],
         parameters: [new OA\PathParameter(name: 'page', schema: new OA\Schema(type: 'integer'))],
@@ -46,7 +46,7 @@ class CmsPageImageController extends Controller
 
         $request->validate([
             'images' => ['required', 'array', 'max:10'],
-            'images.*' => ['image', 'max:4096'],
+            'images.*' => ['image', 'max:8192'],
         ]);
 
         $nextOrder = ((int) $page->images()->max('order')) + 1;
