@@ -42,7 +42,7 @@ class AuthController extends Controller
                     new OA\Property(property: 'country', type: 'string', nullable: true),
                     new OA\Property(property: 'phone', type: 'string', nullable: true),
                     new OA\Property(property: 'expertise', type: 'string', nullable: true, description: 'Requis si role=mentor'),
-                    new OA\Property(property: 'bio', type: 'string', nullable: true, description: 'mentor uniquement'),
+                    new OA\Property(property: 'bio', type: 'string', nullable: true, description: 'Requis si role=mentor — filière et apport de la candidate'),
                     new OA\Property(property: 'level', type: 'string', nullable: true, description: 'mentee uniquement'),
                     new OA\Property(property: 'school', type: 'string', nullable: true, description: 'mentee uniquement'),
                     new OA\Property(property: 'interests', type: 'string', nullable: true, description: "mentee uniquement — domaine et métier STEM choisis, ex. « Science — Biologie »"),
@@ -65,7 +65,7 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             // Mentor-only
             'expertise' => ['required_if:role,mentor', 'nullable', 'string', 'max:255'],
-            'bio' => ['nullable', 'string'],
+            'bio' => ['required_if:role,mentor', 'nullable', 'string', 'max:2000'],
             // Mentee-only
             'level' => ['nullable', 'string', 'max:255'],
             'school' => ['nullable', 'string', 'max:255'],

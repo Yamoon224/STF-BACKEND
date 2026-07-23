@@ -49,6 +49,7 @@ class AuthTest extends TestCase
             'password_confirmation' => 'password123',
             'role' => 'mentor',
             'expertise' => 'Ingénieure logiciel',
+            'bio' => 'Ingénieure logiciel avec 8 ans d\'expérience, je peux accompagner sur la montée en compétences techniques et la préparation aux entretiens.',
         ]);
 
         $response->assertCreated();
