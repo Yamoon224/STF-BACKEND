@@ -20,7 +20,7 @@ class RolePermissionSeeder extends Seeder
             'matching.manage', 'pairings.manage', 'sessions.manage',
             'groups.manage', 'moderation.manage',
             'cms.manage', 'reports.view', 'reports.manage',
-            'audit-logs.view', 'settings.manage',
+            'audit-logs.view', 'settings.manage', 'newsletter.manage',
         ];
 
         foreach ($permissions as $permission) {
@@ -35,7 +35,7 @@ class RolePermissionSeeder extends Seeder
             'users.view', 'programs.manage', 'cohorts.manage',
             'matching.manage', 'pairings.manage', 'sessions.manage',
             'groups.manage', 'moderation.manage', 'cms.manage',
-            'reports.view', 'reports.manage',
+            'reports.view', 'reports.manage', 'newsletter.manage',
         ]);
 
         Role::findOrCreate('mentor', 'sanctum');

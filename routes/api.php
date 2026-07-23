@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\MatchingController;
 use App\Http\Controllers\Api\MentorshipPairingController;
 use App\Http\Controllers\Api\MentorshipSessionController;
 use App\Http\Controllers\Api\ModuleController;
+use App\Http\Controllers\Api\NewsletterSubscriberController;
 use App\Http\Controllers\Api\PageSectionController;
 use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\ProgramController;
@@ -67,6 +68,8 @@ Route::get('cms/pages', [CmsPageController::class, 'index']);
 Route::get('cms/pages/{slug}', [CmsPageController::class, 'show']);
 Route::get('stats/impact', [StatsController::class, 'impact']);
 Route::post('contact', [ContactMessageController::class, 'store']);
+Route::post('newsletter/subscribe', [NewsletterSubscriberController::class, 'subscribe']);
+Route::post('newsletter/unsubscribe', [NewsletterSubscriberController::class, 'unsubscribe']);
 Route::get('site-settings', [SiteSettingController::class, 'index']);
 Route::get('page-sections', [PageSectionController::class, 'index']);
 
@@ -174,6 +177,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('reports/{report}', [ReportController::class, 'update']);
     Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:audit-logs.view');
     Route::get('contact-messages', [ContactMessageController::class, 'index'])->middleware('permission:reports.view');
+    Route::get('newsletter/subscribers', [NewsletterSubscriberController::class, 'index'])->middleware('permission:newsletter.manage');
+    Route::delete('newsletter/subscribers/{subscriber}', [NewsletterSubscriberController::class, 'destroy'])->middleware('permission:newsletter.manage');
 
     // CMS content management
     Route::post('cms/pages', [CmsPageController::class, 'store'])->middleware('permission:cms.manage');
