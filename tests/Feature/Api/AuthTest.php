@@ -13,6 +13,16 @@ class AuthTest extends TestCase
 {
     public function test_mentee_can_register(): void
     {
+        $missingGoals = $this->postJson('/api/auth/register', [
+            'name' => 'Aïcha Diallo',
+            'email' => 'aicha@example.org',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'mentee',
+            'level' => 'Terminale',
+        ]);
+        $missingGoals->assertUnprocessable();
+
         $response = $this->postJson('/api/auth/register', [
             'name' => 'Aïcha Diallo',
             'email' => 'aicha@example.org',
@@ -20,6 +30,7 @@ class AuthTest extends TestCase
             'password_confirmation' => 'password123',
             'role' => 'mentee',
             'level' => 'Terminale',
+            'goals' => 'Je recherche une formation en développement web pour me réorienter vers la tech.',
         ]);
 
         $response->assertCreated()->assertJsonPath('user.roles.0', 'mentee');
@@ -29,6 +40,7 @@ class AuthTest extends TestCase
         $this->assertNotNull($user);
         $this->assertSame('active', $user->status);
         $this->assertNotNull($user->menteeProfile);
+        $this->assertNotNull($user->menteeProfile->goals);
     }
 
     public function test_mentor_registration_starts_pending_and_requires_expertise(): void

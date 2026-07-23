@@ -12,6 +12,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'level', type: 'string', nullable: true, example: 'Terminale scientifique'),
         new OA\Property(property: 'school', type: 'string', nullable: true),
         new OA\Property(property: 'interests', type: 'string', nullable: true),
+        new OA\Property(property: 'goals', type: 'string', nullable: true, description: 'Formation recherchée par la mentée'),
         new OA\Property(property: 'guardian_name', type: 'string', nullable: true),
         new OA\Property(property: 'guardian_contact', type: 'string', nullable: true),
     ]

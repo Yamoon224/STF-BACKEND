@@ -46,6 +46,7 @@ class AuthController extends Controller
                     new OA\Property(property: 'level', type: 'string', nullable: true, description: 'mentee uniquement'),
                     new OA\Property(property: 'school', type: 'string', nullable: true, description: 'mentee uniquement'),
                     new OA\Property(property: 'interests', type: 'string', nullable: true, description: "mentee uniquement — domaine et métier STEM choisis, ex. « Science — Biologie »"),
+                    new OA\Property(property: 'goals', type: 'string', nullable: true, description: 'Requis si role=mentee — formation recherchée par la candidate'),
                 ]
             )
         ),
@@ -70,6 +71,7 @@ class AuthController extends Controller
             'level' => ['nullable', 'string', 'max:255'],
             'school' => ['nullable', 'string', 'max:255'],
             'interests' => ['nullable', 'string', 'max:255'],
+            'goals' => ['required_if:role,mentee', 'nullable', 'string', 'max:2000'],
         ]);
 
         $user = User::create([
@@ -95,6 +97,7 @@ class AuthController extends Controller
                 'level' => $data['level'] ?? null,
                 'school' => $data['school'] ?? null,
                 'interests' => $data['interests'] ?? null,
+                'goals' => $data['goals'] ?? null,
             ]);
         }
 

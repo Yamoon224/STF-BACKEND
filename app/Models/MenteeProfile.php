@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MenteeProfile extends Model
 {
     protected $fillable = [
-        'user_id', 'level', 'school', 'interests', 'guardian_name', 'guardian_contact',
+        'user_id', 'level', 'school', 'interests', 'goals', 'guardian_name', 'guardian_contact',
     ];
 
     public function user(): BelongsTo
