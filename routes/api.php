@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\ModuleController;
 use App\Http\Controllers\Api\NewsletterSubscriberController;
 use App\Http\Controllers\Api\PageSectionController;
 use App\Http\Controllers\Api\PartnerController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\QuizController;
@@ -46,6 +47,8 @@ Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
     Route::post('mfa/verify', [AuthController::class, 'verifyMfa']);
+    Route::post('forgot-password', [PasswordResetController::class, 'forgotPassword']);
+    Route::post('reset-password', [PasswordResetController::class, 'resetPassword']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);

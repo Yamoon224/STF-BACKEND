@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public Site URL
+    |--------------------------------------------------------------------------
+    |
+    | Base URL of the public Next.js site (not this API). Used to build
+    | links that must point at frontend pages, e.g. the password reset link
+    | sent by email, since this is an API-only app with no Blade views.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

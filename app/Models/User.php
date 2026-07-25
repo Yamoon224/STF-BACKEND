@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -49,6 +50,15 @@ class User extends Authenticatable
     protected function identityDocumentAvailable(): Attribute
     {
         return Attribute::get(fn () => ! empty($this->identity_document_path));
+    }
+
+    /**
+     * Overrides Laravel's default, which links to a `password.reset` named route —
+     * this API has no Blade views, so the link must point at the Next.js site instead.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 
     public function identityVerifier(): \Illuminate\Database\Eloquent\Relations\BelongsTo
