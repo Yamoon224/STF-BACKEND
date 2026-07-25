@@ -93,7 +93,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('users/{user}', [UserController::class, 'update'])->middleware('permission:users.manage');
     Route::post('users/{user}/suspend', [UserController::class, 'suspend'])->middleware('permission:users.manage');
     Route::post('users/{user}/activate', [UserController::class, 'activate'])->middleware('permission:users.manage');
-    Route::post('users/{user}/validate-mentor', [UserController::class, 'validateMentor'])->middleware('permission:users.manage');
+    Route::post('users/{user}/verify-identity', [UserController::class, 'verifyIdentity'])->middleware('permission:users.manage');
+    Route::get('users/{user}/identity-document', [UserController::class, 'identityDocument'])->middleware('permission:users.manage');
+    Route::get('users/{user}/diploma-document', [UserController::class, 'diplomaDocument'])->middleware('permission:users.manage');
     Route::post('users/{user}/role', [UserController::class, 'assignRole'])->middleware('permission:settings.manage');
     Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('permission:users.manage');
     Route::delete('users/{user}', [UserController::class, 'destroy'])->middleware('permission:users.manage');

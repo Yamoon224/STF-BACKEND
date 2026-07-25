@@ -27,27 +27,34 @@ class AuthController extends Controller
         path: '/auth/register',
         summary: 'Créer un compte (mentée, mentore ou bailleur)',
         description: "Les comptes admin/staff ne peuvent pas être créés par cette route (voir `POST /users`). "
-            .'Un compte mentore démarre `pending` (en attente de validation STF) ; mentée et bailleur démarrent `active`.',
+            .'Un compte mentore ou mentée démarre `pending` (en attente de vérification de la pièce d\'identité, '
+            .'et du diplôme/bulletin pour une mentée) ; bailleur démarre `active`.',
         tags: ['Auth'],
         requestBody: new OA\RequestBody(
             required: true,
-            content: new OA\JsonContent(
-                required: ['name', 'email', 'password', 'password_confirmation', 'role'],
-                properties: [
-                    new OA\Property(property: 'name', type: 'string', example: 'Aïcha Diallo'),
-                    new OA\Property(property: 'email', type: 'string', format: 'email'),
-                    new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
-                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
-                    new OA\Property(property: 'role', type: 'string', enum: ['mentee', 'mentor', 'donor']),
-                    new OA\Property(property: 'country', type: 'string', nullable: true),
-                    new OA\Property(property: 'phone', type: 'string', nullable: true),
-                    new OA\Property(property: 'expertise', type: 'string', nullable: true, description: 'Requis si role=mentor'),
-                    new OA\Property(property: 'bio', type: 'string', nullable: true, description: 'Requis si role=mentor — filière et apport de la candidate'),
-                    new OA\Property(property: 'level', type: 'string', nullable: true, description: 'mentee uniquement'),
-                    new OA\Property(property: 'school', type: 'string', nullable: true, description: 'mentee uniquement'),
-                    new OA\Property(property: 'interests', type: 'string', nullable: true, description: "mentee uniquement — domaine et métier STEM choisis, ex. « Science — Biologie »"),
-                    new OA\Property(property: 'goals', type: 'string', nullable: true, description: 'Requis si role=mentee — formation recherchée par la candidate'),
-                ]
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    type: 'object',
+                    required: ['name', 'email', 'password', 'password_confirmation', 'role'],
+                    properties: [
+                        new OA\Property(property: 'name', type: 'string', example: 'Aïcha Diallo'),
+                        new OA\Property(property: 'email', type: 'string', format: 'email'),
+                        new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+                        new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
+                        new OA\Property(property: 'role', type: 'string', enum: ['mentee', 'mentor', 'donor']),
+                        new OA\Property(property: 'country', type: 'string', nullable: true),
+                        new OA\Property(property: 'phone', type: 'string', nullable: true),
+                        new OA\Property(property: 'expertise', type: 'string', nullable: true, description: 'Requis si role=mentor'),
+                        new OA\Property(property: 'bio', type: 'string', nullable: true, description: 'Requis si role=mentor — filière et apport de la candidate'),
+                        new OA\Property(property: 'level', type: 'string', nullable: true, description: 'mentee uniquement'),
+                        new OA\Property(property: 'school', type: 'string', nullable: true, description: 'mentee uniquement'),
+                        new OA\Property(property: 'interests', type: 'string', nullable: true, description: "mentee uniquement — domaine et métier STEM choisis, ex. « Science — Biologie »"),
+                        new OA\Property(property: 'goals', type: 'string', nullable: true, description: 'Requis si role=mentee — formation recherchée par la candidate'),
+                        new OA\Property(property: 'identity_document', type: 'string', format: 'binary', description: 'Requis si role=mentor ou mentee — pièce d\'identité (PNG, JPG ou WEBP).'),
+                        new OA\Property(property: 'diploma_document', type: 'string', format: 'binary', description: 'Requis si role=mentee — diplôme ou bulletin (image ou PDF).'),
+                    ]
+                )
             )
         ),
         responses: [
@@ -72,7 +79,22 @@ class AuthController extends Controller
             'school' => ['nullable', 'string', 'max:255'],
             'interests' => ['nullable', 'string', 'max:255'],
             'goals' => ['required_if:role,mentee', 'nullable', 'string', 'max:2000'],
+            // Mentor & mentee: identity verification documents
+            'identity_document' => [
+                Rule::requiredIf(in_array($request->input('role'), ['mentor', 'mentee'], true)),
+                'nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192',
+            ],
+            'diploma_document' => [
+                Rule::requiredIf($request->input('role') === 'mentee'),
+                'nullable', 'file', 'mimes:png,jpg,jpeg,webp,pdf', 'max:8192',
+            ],
         ]);
+
+        $needsVerification = in_array($data['role'], ['mentor', 'mentee'], true);
+
+        $identityDocumentPath = $request->hasFile('identity_document')
+            ? $request->file('identity_document')->store('identity-documents', 'local')
+            : null;
 
         $user = User::create([
             'name' => $data['name'],
@@ -80,7 +102,8 @@ class AuthController extends Controller
             'password' => $data['password'],
             'country' => $data['country'] ?? null,
             'phone' => $data['phone'] ?? null,
-            'status' => $data['role'] === 'mentor' ? 'pending' : 'active',
+            'status' => $needsVerification ? 'pending' : 'active',
+            'identity_document_path' => $identityDocumentPath,
         ]);
 
         $user->assignRole($data['role']);
@@ -92,22 +115,30 @@ class AuthController extends Controller
                 'bio' => $data['bio'] ?? null,
             ]);
         } elseif ($data['role'] === 'mentee') {
+            $diplomaDocumentPath = $request->hasFile('diploma_document')
+                ? $request->file('diploma_document')->store('diplomas', 'local')
+                : null;
+
             MenteeProfile::create([
                 'user_id' => $user->id,
                 'level' => $data['level'] ?? null,
                 'school' => $data['school'] ?? null,
                 'interests' => $data['interests'] ?? null,
                 'goals' => $data['goals'] ?? null,
+                'diploma_document_path' => $diplomaDocumentPath,
             ]);
         }
 
         AuditLog::record($user, 'compte.cree', $user, ['role' => $data['role']]);
 
-        $token = $user->createToken('api')->plainTextToken;
+        // A pending account (mentor/mentee awaiting identity verification) must not be able
+        // to use the API before an admin approves it, so no session token is issued yet.
+        $token = $needsVerification ? null : $user->createToken('api')->plainTextToken;
 
         return response()->json([
             'user' => $this->transformUser($user),
             'token' => $token,
+            'pending' => $needsVerification,
         ], 201);
     }
 
@@ -155,9 +186,14 @@ class AuthController extends Controller
             ]);
         }
 
-        if ($user->status === 'suspended') {
+        if ($user->status !== 'active') {
             throw ValidationException::withMessages([
-                'email' => ['Ce compte est suspendu.'],
+                'email' => [match ($user->status) {
+                    'pending' => 'Votre inscription est en cours de vérification.',
+                    'rejected' => 'Votre inscription a été refusée.'
+                        .($user->identity_rejected_reason ? " Motif : {$user->identity_rejected_reason}" : ''),
+                    default => 'Ce compte est suspendu.',
+                }],
             ]);
         }
 
@@ -296,6 +332,8 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'status' => $user->status,
+            'identity_document_available' => $user->identity_document_available,
+            'identity_rejected_reason' => $user->identity_rejected_reason,
             'country' => $user->country,
             'phone' => $user->phone,
             'roles' => $user->getRoleNames(),

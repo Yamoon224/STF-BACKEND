@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\User;
 use App\Services\MfaService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
 use PragmaRX\Google2FA\Google2FA;
@@ -13,17 +14,7 @@ class AuthTest extends TestCase
 {
     public function test_mentee_can_register(): void
     {
-        $missingGoals = $this->postJson('/api/auth/register', [
-            'name' => 'Aïcha Diallo',
-            'email' => 'aicha@example.org',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-            'role' => 'mentee',
-            'level' => 'Terminale',
-        ]);
-        $missingGoals->assertUnprocessable();
-
-        $response = $this->postJson('/api/auth/register', [
+        $missingDocuments = $this->postJson('/api/auth/register', [
             'name' => 'Aïcha Diallo',
             'email' => 'aicha@example.org',
             'password' => 'password123',
@@ -32,29 +23,46 @@ class AuthTest extends TestCase
             'level' => 'Terminale',
             'goals' => 'Je recherche une formation en développement web pour me réorienter vers la tech.',
         ]);
+        $missingDocuments->assertUnprocessable()->assertJsonValidationErrors(['identity_document', 'diploma_document']);
+
+        $response = $this->post('/api/auth/register', [
+            'name' => 'Aïcha Diallo',
+            'email' => 'aicha@example.org',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'mentee',
+            'level' => 'Terminale',
+            'goals' => 'Je recherche une formation en développement web pour me réorienter vers la tech.',
+            'identity_document' => UploadedFile::fake()->image('cni.png'),
+            'diploma_document' => UploadedFile::fake()->image('diplome.png'),
+        ]);
 
         $response->assertCreated()->assertJsonPath('user.roles.0', 'mentee');
-        $this->assertNotEmpty($response->json('token'));
+        $this->assertNull($response->json('token'));
+        $this->assertTrue($response->json('pending'));
 
         $user = User::where('email', 'aicha@example.org')->first();
         $this->assertNotNull($user);
-        $this->assertSame('active', $user->status);
+        $this->assertSame('pending', $user->status);
         $this->assertNotNull($user->menteeProfile);
         $this->assertNotNull($user->menteeProfile->goals);
+        $this->assertTrue($user->identity_document_available);
+        $this->assertTrue($user->menteeProfile->diploma_document_available);
     }
 
     public function test_mentor_registration_starts_pending_and_requires_expertise(): void
     {
-        $missingExpertise = $this->postJson('/api/auth/register', [
+        $missingExpertise = $this->post('/api/auth/register', [
             'name' => 'Fatou Konaté',
             'email' => 'fatou@example.org',
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'role' => 'mentor',
+            'identity_document' => UploadedFile::fake()->image('cni.png'),
         ]);
         $missingExpertise->assertUnprocessable();
 
-        $response = $this->postJson('/api/auth/register', [
+        $response = $this->post('/api/auth/register', [
             'name' => 'Fatou Konaté',
             'email' => 'fatou@example.org',
             'password' => 'password123',
@@ -62,9 +70,11 @@ class AuthTest extends TestCase
             'role' => 'mentor',
             'expertise' => 'Ingénieure logiciel',
             'bio' => 'Ingénieure logiciel avec 8 ans d\'expérience, je peux accompagner sur la montée en compétences techniques et la préparation aux entretiens.',
+            'identity_document' => UploadedFile::fake()->image('cni.png'),
         ]);
 
         $response->assertCreated();
+        $this->assertNull($response->json('token'));
         $user = User::where('email', 'fatou@example.org')->first();
         $this->assertSame('pending', $user->status);
         $this->assertNotNull($user->mentorProfile);
@@ -82,6 +92,40 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertUnprocessable();
+    }
+
+    public function test_pending_user_cannot_login(): void
+    {
+        $this->makeUser('mentee', [
+            'email' => 'pending@example.org',
+            'password' => 'password123',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => 'pending@example.org',
+            'password' => 'password123',
+        ]);
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_rejected_user_cannot_login(): void
+    {
+        $this->makeUser('mentor', [
+            'email' => 'rejected@example.org',
+            'password' => 'password123',
+            'status' => 'rejected',
+            'identity_rejected_reason' => 'Document illisible',
+        ]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => 'rejected@example.org',
+            'password' => 'password123',
+        ]);
+
+        $response->assertUnprocessable();
+        $this->assertStringContainsString('Document illisible', $response->json('errors.email.0'));
     }
 
     public function test_login_with_valid_credentials_returns_token(): void

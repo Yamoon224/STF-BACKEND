@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
@@ -21,7 +22,7 @@ class UserController extends Controller
         tags: ['Utilisatrices'],
         parameters: [
             new OA\QueryParameter(name: 'role', description: 'Filtrer par rôle', schema: new OA\Schema(type: 'string', enum: ['admin', 'staff', 'mentor', 'mentee', 'donor'])),
-            new OA\QueryParameter(name: 'status', description: 'Filtrer par statut', schema: new OA\Schema(type: 'string', enum: ['pending', 'active', 'suspended'])),
+            new OA\QueryParameter(name: 'status', description: 'Filtrer par statut', schema: new OA\Schema(type: 'string', enum: ['pending', 'active', 'suspended', 'rejected'])),
             new OA\QueryParameter(name: 'search', description: 'Recherche sur le nom ou l\'email', schema: new OA\Schema(type: 'string')),
         ],
         responses: [
@@ -162,6 +163,7 @@ class UserController extends Controller
     public function suspend(Request $request, User $user)
     {
         $user->update(['status' => 'suspended']);
+        $user->tokens()->delete();
 
         AuditLog::record($request->user(), 'compte.suspendu', $user);
 
@@ -189,33 +191,105 @@ class UserController extends Controller
     }
 
     #[OA\Post(
-        path: '/users/{user}/validate-mentor',
-        summary: 'Valider un profil mentore',
-        description: 'Marque le profil mentore comme validé et active le compte.',
+        path: '/users/{user}/verify-identity',
+        summary: "Approuver ou rejeter la vérification d'identité",
+        description: 'Approuve (active le compte, valide le profil mentore le cas échéant) ou rejette '
+            .'(motif requis, révoque les jetons) la pièce d\'identité — et le diplôme/bulletin pour une mentée.',
+        security: [['bearerAuth' => []]],
+        tags: ['Utilisatrices'],
+        parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['decision'],
+                properties: [
+                    new OA\Property(property: 'decision', type: 'string', enum: ['approved', 'rejected']),
+                    new OA\Property(property: 'reason', type: 'string', nullable: true, description: 'Requis si decision=rejected'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Décision enregistrée', content: new OA\JsonContent(ref: '#/components/schemas/User')),
+            new OA\Response(response: 403, description: "Permission `users.manage` requise"),
+            new OA\Response(response: 422, description: 'Validation échouée', content: new OA\JsonContent(ref: '#/components/schemas/ValidationError')),
+        ]
+    )]
+    public function verifyIdentity(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'decision' => ['required', Rule::in(['approved', 'rejected'])],
+            'reason' => ['required_if:decision,rejected', 'nullable', 'string', 'max:2000'],
+        ]);
+
+        if ($data['decision'] === 'approved') {
+            $user->update([
+                'status' => 'active',
+                'identity_verified_at' => now(),
+                'identity_verified_by' => $request->user()->id,
+                'identity_rejected_reason' => null,
+            ]);
+
+            if ($user->mentorProfile) {
+                $user->mentorProfile->update([
+                    'validated_at' => now(),
+                    'validated_by' => $request->user()->id,
+                ]);
+            }
+
+            AuditLog::record($request->user(), 'identite.approuvee', $user);
+        } else {
+            $user->update([
+                'status' => 'rejected',
+                'identity_verified_at' => null,
+                'identity_verified_by' => null,
+                'identity_rejected_reason' => $data['reason'],
+            ]);
+            $user->tokens()->delete();
+
+            AuditLog::record($request->user(), 'identite.rejetee', $user, ['reason' => $data['reason']]);
+        }
+
+        return $user->load(['mentorProfile', 'menteeProfile']);
+    }
+
+    #[OA\Get(
+        path: '/users/{user}/identity-document',
+        summary: "Consulter la pièce d'identité",
         security: [['bearerAuth' => []]],
         tags: ['Utilisatrices'],
         parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
         responses: [
-            new OA\Response(response: 200, description: 'Mentore validée', content: new OA\JsonContent(ref: '#/components/schemas/User')),
+            new OA\Response(response: 200, description: 'Fichier'),
             new OA\Response(response: 403, description: "Permission `users.manage` requise"),
-            new OA\Response(response: 422, description: "Cette utilisatrice n'a pas de profil mentore"),
+            new OA\Response(response: 404, description: 'Aucune pièce déposée'),
         ]
     )]
-    public function validateMentor(Request $request, User $user)
+    public function identityDocument(User $user)
     {
-        $profile = $user->mentorProfile;
+        abort_unless($user->identity_document_path, 404);
 
-        abort_if(! $profile, 422, "Cette utilisatrice n'a pas de profil mentore.");
+        return Storage::disk('local')->response($user->identity_document_path);
+    }
 
-        $profile->update([
-            'validated_at' => now(),
-            'validated_by' => $request->user()->id,
-        ]);
-        $user->update(['status' => 'active']);
+    #[OA\Get(
+        path: '/users/{user}/diploma-document',
+        summary: 'Consulter le diplôme ou bulletin (mentée)',
+        security: [['bearerAuth' => []]],
+        tags: ['Utilisatrices'],
+        parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Fichier'),
+            new OA\Response(response: 403, description: "Permission `users.manage` requise"),
+            new OA\Response(response: 404, description: 'Aucun document déposé'),
+        ]
+    )]
+    public function diplomaDocument(User $user)
+    {
+        $path = $user->menteeProfile?->diploma_document_path;
 
-        AuditLog::record($request->user(), 'mentore.validee', $user);
+        abort_unless($path, 404);
 
-        return $user->load('mentorProfile');
+        return Storage::disk('local')->response($path);
     }
 
     #[OA\Post(

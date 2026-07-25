@@ -58,7 +58,7 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'collab@example.org', 'status' => 'active']);
     }
 
-    public function test_admin_can_validate_a_pending_mentor(): void
+    public function test_admin_can_approve_a_pending_mentors_identity(): void
     {
         $admin = $this->makeUser('admin');
         $mentor = $this->makeUser('mentor', ['status' => 'pending']);
@@ -66,20 +66,53 @@ class UserManagementTest extends TestCase
 
         Sanctum::actingAs($admin, ['*']);
 
-        $response = $this->postJson("/api/users/{$mentor->id}/validate-mentor");
+        $response = $this->postJson("/api/users/{$mentor->id}/verify-identity", ['decision' => 'approved']);
 
         $response->assertOk();
         $this->assertSame('active', $mentor->fresh()->status);
+        $this->assertNotNull($mentor->fresh()->identity_verified_at);
         $this->assertNotNull($mentor->fresh()->mentorProfile->validated_at);
         $this->assertSame($admin->id, $mentor->fresh()->mentorProfile->validated_by);
     }
 
-    public function test_validating_mentor_without_profile_fails(): void
+    public function test_admin_can_reject_a_pending_users_identity_with_a_reason(): void
+    {
+        $admin = $this->makeUser('admin');
+        $mentee = $this->makeUser('mentee', ['status' => 'pending']);
+        $token = $mentee->createToken('api')->plainTextToken;
+
+        Sanctum::actingAs($admin, ['*']);
+
+        $response = $this->postJson("/api/users/{$mentee->id}/verify-identity", [
+            'decision' => 'rejected',
+            'reason' => 'Photo illisible',
+        ]);
+
+        $response->assertOk();
+        $this->assertSame('rejected', $mentee->fresh()->status);
+        $this->assertSame('Photo illisible', $mentee->fresh()->identity_rejected_reason);
+        $this->assertSame(0, $mentee->fresh()->tokens()->count());
+        $this->assertNotEmpty($token);
+    }
+
+    public function test_rejecting_identity_without_a_reason_fails(): void
     {
         Sanctum::actingAs($this->makeUser('admin'), ['*']);
-        $mentor = $this->makeUser('mentor');
+        $mentor = $this->makeUser('mentor', ['status' => 'pending']);
 
-        $this->postJson("/api/users/{$mentor->id}/validate-mentor")->assertStatus(422);
+        $this->postJson("/api/users/{$mentor->id}/verify-identity", ['decision' => 'rejected'])
+            ->assertStatus(422);
+    }
+
+    public function test_identity_document_is_only_accessible_with_permission(): void
+    {
+        $mentee = $this->makeUser('mentee');
+
+        Sanctum::actingAs($this->makeUser('mentee'), ['*']);
+        $this->getJson("/api/users/{$mentee->id}/identity-document")->assertForbidden();
+
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+        $this->getJson("/api/users/{$mentee->id}/identity-document")->assertStatus(404);
     }
 
     public function test_admin_can_update_a_users_email(): void
