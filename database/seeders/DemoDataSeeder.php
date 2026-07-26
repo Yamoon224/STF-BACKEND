@@ -544,6 +544,7 @@ class DemoDataSeeder extends Seeder
         $this->call(PartnerSeeder::class);
         $this->call(ScholarshipSeeder::class);
         $this->call(BlogSeeder::class);
+        $this->call(EmpowherScienceExpo2025Seeder::class);
         $this->call(TestimonialSeeder::class);
         $this->call(SiteContentSeeder::class);
 
