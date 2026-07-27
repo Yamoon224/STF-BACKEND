@@ -88,4 +88,26 @@ class CmsPageNewsletterNotificationTest extends TestCase
         Mail::assertQueued(CmsPageNewsletterMail::class, fn ($mail) => $mail->hasTo('active@example.org'));
         Mail::assertNotQueued(CmsPageNewsletterMail::class, fn ($mail) => $mail->hasTo('gone@example.org'));
     }
+
+    public function test_mail_renders_the_article_title_excerpt_link_and_unsubscribe_link(): void
+    {
+        $subscriber = NewsletterSubscriber::create(['email' => 'active@example.org', 'status' => 'actif']);
+        $page = CmsPage::create([
+            'title' => 'Un bel article',
+            'slug' => 'un-bel-article',
+            'type' => 'article',
+            'category' => 'Événement',
+            'excerpt' => 'Un extrait qui décrit le contenu.',
+            'status' => 'publie',
+            'published_at' => now(),
+        ]);
+
+        $html = (new CmsPageNewsletterMail($page, $subscriber))->render();
+
+        $this->assertStringContainsString('Un bel article', $html);
+        $this->assertStringContainsString('Un extrait qui décrit le contenu.', $html);
+        $this->assertStringContainsString('Événement', $html);
+        $this->assertStringContainsString('/blog/un-bel-article', $html);
+        $this->assertStringContainsString('/newsletter/unsubscribe/'.$subscriber->id, $html);
+    }
 }
