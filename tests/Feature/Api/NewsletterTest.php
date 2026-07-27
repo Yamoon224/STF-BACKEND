@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\NewsletterSubscriber;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -61,5 +62,33 @@ class NewsletterTest extends TestCase
         $this->getJson('/api/newsletter/subscribers')->assertOk()->assertJsonCount(1, 'data');
         $this->deleteJson("/api/newsletter/subscribers/{$subscriber->id}")->assertNoContent();
         $this->assertDatabaseMissing('newsletter_subscribers', ['id' => $subscriber->id]);
+    }
+
+    public function test_signed_unsubscribe_link_unsubscribes_the_subscriber(): void
+    {
+        $this->postJson('/api/newsletter/subscribe', ['email' => 'visiteuse@example.org'])->assertCreated();
+        $subscriber = NewsletterSubscriber::firstOrFail();
+
+        $url = URL::signedRoute('newsletter.unsubscribe', ['subscriber' => $subscriber->id]);
+
+        $this->get($url)->assertOk();
+
+        $this->assertDatabaseHas('newsletter_subscribers', [
+            'id' => $subscriber->id,
+            'status' => 'desabonne',
+        ]);
+    }
+
+    public function test_unsubscribe_link_without_a_valid_signature_is_rejected(): void
+    {
+        $this->postJson('/api/newsletter/subscribe', ['email' => 'visiteuse@example.org'])->assertCreated();
+        $subscriber = NewsletterSubscriber::firstOrFail();
+
+        $this->get("/newsletter/unsubscribe/{$subscriber->id}")->assertForbidden();
+
+        $this->assertDatabaseHas('newsletter_subscribers', [
+            'id' => $subscriber->id,
+            'status' => 'actif',
+        ]);
     }
 }

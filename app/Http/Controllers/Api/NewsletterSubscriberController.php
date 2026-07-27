@@ -102,6 +102,16 @@ class NewsletterSubscriberController extends Controller
         return response()->json(['message' => 'Désabonnée avec succès.']);
     }
 
+    /**
+     * Lien de désabonnement en un clic depuis l'e-mail de newsletter (URL signée).
+     */
+    public function unsubscribeViaSignedLink(NewsletterSubscriber $subscriber)
+    {
+        $subscriber->update(['status' => 'desabonne', 'unsubscribed_at' => now()]);
+
+        return view('emails.newsletter.unsubscribed');
+    }
+
     #[OA\Delete(
         path: '/newsletter/subscribers/{subscriber}',
         summary: 'Supprimer une abonnée',

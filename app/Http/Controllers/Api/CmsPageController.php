@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\NotifyNewsletterSubscribersOfCmsPage;
 use App\Models\CmsPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -109,7 +110,13 @@ class CmsPageController extends Controller
             $data['image_path'] = $request->file('image')->store('cms-pages', 'public');
         }
 
-        return response()->json(CmsPage::create($data), 201);
+        $page = CmsPage::create($data);
+
+        if ($page->type === 'article' && $page->status === 'publie') {
+            NotifyNewsletterSubscribersOfCmsPage::dispatch($page);
+        }
+
+        return response()->json($page, 201);
     }
 
     #[OA\Patch(
@@ -161,7 +168,8 @@ class CmsPageController extends Controller
         if (isset($data['title'])) {
             $data['slug'] = Str::slug($data['title']);
         }
-        if (($data['status'] ?? null) === 'publie' && ! $page->published_at) {
+        $isNewlyPublished = ($data['status'] ?? null) === 'publie' && ! $page->published_at;
+        if ($isNewlyPublished) {
             $data['published_at'] = now();
         }
 
@@ -178,6 +186,10 @@ class CmsPageController extends Controller
         }
 
         $page->update($data);
+
+        if ($isNewlyPublished && $page->type === 'article') {
+            NotifyNewsletterSubscribersOfCmsPage::dispatch($page);
+        }
 
         return $page;
     }
