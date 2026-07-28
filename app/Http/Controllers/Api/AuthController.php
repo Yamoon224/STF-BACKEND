@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\MemberProfile;
 use App\Models\MenteeProfile;
 use App\Models\MentorProfile;
 use App\Models\User;
@@ -25,10 +26,11 @@ class AuthController extends Controller
      */
     #[OA\Post(
         path: '/auth/register',
-        summary: 'Créer un compte (mentée, mentore ou bailleur)',
+        summary: 'Créer un compte (mentée, mentore, membre ou bailleur)',
         description: "Les comptes admin/staff ne peuvent pas être créés par cette route (voir `POST /users`). "
             .'Un compte mentore ou mentée démarre `pending` (en attente de vérification de la pièce d\'identité, '
-            .'et du diplôme/bulletin pour une mentée) ; bailleur démarre `active`.',
+            .'et du diplôme/bulletin pour une mentée) ; un compte membre démarre `pending` (en attente de '
+            .'vérification de la preuve de paiement de l\'adhésion) ; bailleur démarre `active`.',
         tags: ['Auth'],
         requestBody: new OA\RequestBody(
             required: true,
@@ -42,7 +44,7 @@ class AuthController extends Controller
                         new OA\Property(property: 'email', type: 'string', format: 'email'),
                         new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
                         new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
-                        new OA\Property(property: 'role', type: 'string', enum: ['mentee', 'mentor', 'donor']),
+                        new OA\Property(property: 'role', type: 'string', enum: ['mentee', 'mentor', 'donor', 'member']),
                         new OA\Property(property: 'country', type: 'string', nullable: true),
                         new OA\Property(property: 'phone', type: 'string', nullable: true),
                         new OA\Property(property: 'expertise', type: 'string', nullable: true, description: 'Requis si role=mentor'),
@@ -54,6 +56,7 @@ class AuthController extends Controller
                         new OA\Property(property: 'identity_document', type: 'string', format: 'binary', description: 'Requis si role=mentor ou mentee — pièce d\'identité (PNG, JPG ou WEBP).'),
                         new OA\Property(property: 'diploma_document', type: 'string', format: 'binary', description: 'Requis si role=mentee — diplôme ou bulletin (image ou PDF).'),
                         new OA\Property(property: 'cv_document', type: 'string', format: 'binary', description: 'Requis si role=mentor — CV (PDF, DOC ou DOCX).'),
+                        new OA\Property(property: 'payment_proof', type: 'string', format: 'binary', description: "Requis si role=member — capture d'écran du paiement de l'adhésion (5 000 FCFA)."),
                     ]
                 )
             )
@@ -69,7 +72,7 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', Rule::in(['mentee', 'mentor', 'donor'])],
+            'role' => ['required', Rule::in(['mentee', 'mentor', 'donor', 'member'])],
             'country' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             // Mentor-only
@@ -93,9 +96,14 @@ class AuthController extends Controller
                 Rule::requiredIf($request->input('role') === 'mentor'),
                 'nullable', 'file', 'mimes:pdf,doc,docx', 'max:8192',
             ],
+            // Member-only: proof of the 5000 FCFA membership payment
+            'payment_proof' => [
+                Rule::requiredIf($request->input('role') === 'member'),
+                'nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192',
+            ],
         ]);
 
-        $needsVerification = in_array($data['role'], ['mentor', 'mentee'], true);
+        $needsVerification = in_array($data['role'], ['mentor', 'mentee', 'member'], true);
 
         $identityDocumentPath = $request->hasFile('identity_document')
             ? $request->file('identity_document')->store('identity-documents', 'local')
@@ -136,6 +144,11 @@ class AuthController extends Controller
                 'interests' => $data['interests'] ?? null,
                 'goals' => $data['goals'] ?? null,
                 'diploma_document_path' => $diplomaDocumentPath,
+            ]);
+        } elseif ($data['role'] === 'member') {
+            MemberProfile::create([
+                'user_id' => $user->id,
+                'payment_proof_path' => $request->file('payment_proof')->store('payment-proofs', 'local'),
             ]);
         }
 
@@ -335,7 +348,7 @@ class AuthController extends Controller
 
     protected function transformUser(User $user): array
     {
-        $user->loadMissing(['mentorProfile', 'menteeProfile', 'badges', 'certificates']);
+        $user->loadMissing(['mentorProfile', 'menteeProfile', 'memberProfile', 'badges', 'certificates']);
 
         return [
             'id' => $user->id,
@@ -352,6 +365,7 @@ class AuthController extends Controller
             'last_login_at' => $user->last_login_at,
             'mentor_profile' => $user->mentorProfile,
             'mentee_profile' => $user->menteeProfile,
+            'member_profile' => $user->memberProfile,
             'badges' => $user->badges,
             'certificates' => $user->certificates,
         ];

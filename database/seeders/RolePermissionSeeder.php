@@ -41,5 +41,6 @@ class RolePermissionSeeder extends Seeder
         Role::findOrCreate('mentor', 'sanctum');
         Role::findOrCreate('mentee', 'sanctum');
         Role::findOrCreate('donor', 'sanctum');
+        Role::findOrCreate('member', 'sanctum');
     }
 }

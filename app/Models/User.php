@@ -76,6 +76,11 @@ class User extends Authenticatable
         return $this->hasOne(MenteeProfile::class);
     }
 
+    public function memberProfile(): HasOne
+    {
+        return $this->hasOne(MemberProfile::class);
+    }
+
     public function menteePairings(): HasMany
     {
         return $this->hasMany(MentorshipPairing::class, 'mentee_id');
