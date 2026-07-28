@@ -14,6 +14,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'capacity', type: 'integer', example: 4),
         new OA\Property(property: 'validated_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'validated_by', type: 'integer', nullable: true),
+        new OA\Property(property: 'cv_document_available', type: 'boolean', example: true),
     ]
 )]
 class MentorProfileSchema {}

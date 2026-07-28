@@ -99,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('users/{user}/verify-identity', [UserController::class, 'verifyIdentity'])->middleware('permission:users.manage');
     Route::get('users/{user}/identity-document', [UserController::class, 'identityDocument'])->middleware('permission:users.manage');
     Route::get('users/{user}/diploma-document', [UserController::class, 'diplomaDocument'])->middleware('permission:users.manage');
+    Route::get('users/{user}/cv-document', [UserController::class, 'cvDocument'])->middleware('permission:users.manage');
     Route::post('users/{user}/role', [UserController::class, 'assignRole'])->middleware('permission:settings.manage');
     Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('permission:users.manage');
     Route::delete('users/{user}', [UserController::class, 'destroy'])->middleware('permission:users.manage');

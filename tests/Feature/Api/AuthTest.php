@@ -50,7 +50,7 @@ class AuthTest extends TestCase
         $this->assertTrue($user->menteeProfile->diploma_document_available);
     }
 
-    public function test_mentor_registration_starts_pending_and_requires_expertise(): void
+    public function test_mentor_registration_starts_pending_and_requires_expertise_and_cv(): void
     {
         $missingExpertise = $this->post('/api/auth/register', [
             'name' => 'Fatou Konaté',
@@ -60,7 +60,7 @@ class AuthTest extends TestCase
             'role' => 'mentor',
             'identity_document' => UploadedFile::fake()->image('cni.png'),
         ]);
-        $missingExpertise->assertUnprocessable();
+        $missingExpertise->assertUnprocessable()->assertJsonValidationErrors(['expertise', 'bio', 'cv_document']);
 
         $response = $this->post('/api/auth/register', [
             'name' => 'Fatou Konaté',
@@ -71,6 +71,7 @@ class AuthTest extends TestCase
             'expertise' => 'Ingénieure logiciel',
             'bio' => 'Ingénieure logiciel avec 8 ans d\'expérience, je peux accompagner sur la montée en compétences techniques et la préparation aux entretiens.',
             'identity_document' => UploadedFile::fake()->image('cni.png'),
+            'cv_document' => UploadedFile::fake()->create('cv.pdf', 200, 'application/pdf'),
         ]);
 
         $response->assertCreated();
@@ -79,6 +80,7 @@ class AuthTest extends TestCase
         $this->assertSame('pending', $user->status);
         $this->assertNotNull($user->mentorProfile);
         $this->assertNull($user->mentorProfile->validated_at);
+        $this->assertTrue($user->mentorProfile->cv_document_available);
     }
 
     public function test_register_rejects_admin_and_staff_roles(): void

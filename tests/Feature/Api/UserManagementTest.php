@@ -5,7 +5,9 @@ namespace Tests\Feature\Api;
 use App\Http\Controllers\Api\UserController;
 use App\Models\MentorProfile;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -113,6 +115,39 @@ class UserManagementTest extends TestCase
 
         Sanctum::actingAs($this->makeUser('admin'), ['*']);
         $this->getJson("/api/users/{$mentee->id}/identity-document")->assertStatus(404);
+    }
+
+    public function test_cv_document_is_only_accessible_with_permission(): void
+    {
+        $mentor = $this->makeUser('mentor');
+
+        Sanctum::actingAs($this->makeUser('mentor'), ['*']);
+        $this->getJson("/api/users/{$mentor->id}/cv-document")->assertForbidden();
+
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+        $this->getJson("/api/users/{$mentor->id}/cv-document")->assertStatus(404);
+    }
+
+    public function test_admin_can_download_a_mentors_cv(): void
+    {
+        Storage::fake('local');
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+
+        $response = $this->post('/api/auth/register', [
+            'name' => 'Fatou Konaté',
+            'email' => 'fatou@example.org',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'mentor',
+            'expertise' => 'Ingénieure logiciel',
+            'bio' => 'Ingénieure logiciel avec 8 ans d\'expérience.',
+            'identity_document' => UploadedFile::fake()->image('cni.png'),
+            'cv_document' => UploadedFile::fake()->create('cv.pdf', 200, 'application/pdf'),
+        ])->assertCreated();
+
+        $mentorId = $response->json('user.id');
+
+        $this->get("/api/users/{$mentorId}/cv-document")->assertOk();
     }
 
     public function test_admin_can_update_a_users_email(): void

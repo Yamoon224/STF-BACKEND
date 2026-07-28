@@ -292,6 +292,27 @@ class UserController extends Controller
         return Storage::disk('local')->response($path);
     }
 
+    #[OA\Get(
+        path: '/users/{user}/cv-document',
+        summary: 'Consulter le CV (mentore)',
+        security: [['bearerAuth' => []]],
+        tags: ['Utilisatrices'],
+        parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Fichier'),
+            new OA\Response(response: 403, description: "Permission `users.manage` requise"),
+            new OA\Response(response: 404, description: 'Aucun document déposé'),
+        ]
+    )]
+    public function cvDocument(User $user)
+    {
+        $path = $user->mentorProfile?->cv_document_path;
+
+        abort_unless($path, 404);
+
+        return Storage::disk('local')->response($path);
+    }
+
     #[OA\Post(
         path: '/users/{user}/role',
         summary: 'Changer le rôle RBAC',

@@ -53,6 +53,7 @@ class AuthController extends Controller
                         new OA\Property(property: 'goals', type: 'string', nullable: true, description: 'Requis si role=mentee — formation recherchée par la candidate'),
                         new OA\Property(property: 'identity_document', type: 'string', format: 'binary', description: 'Requis si role=mentor ou mentee — pièce d\'identité (PNG, JPG ou WEBP).'),
                         new OA\Property(property: 'diploma_document', type: 'string', format: 'binary', description: 'Requis si role=mentee — diplôme ou bulletin (image ou PDF).'),
+                        new OA\Property(property: 'cv_document', type: 'string', format: 'binary', description: 'Requis si role=mentor — CV (PDF, DOC ou DOCX).'),
                     ]
                 )
             )
@@ -88,6 +89,10 @@ class AuthController extends Controller
                 Rule::requiredIf($request->input('role') === 'mentee'),
                 'nullable', 'file', 'mimes:png,jpg,jpeg,webp,pdf', 'max:8192',
             ],
+            'cv_document' => [
+                Rule::requiredIf($request->input('role') === 'mentor'),
+                'nullable', 'file', 'mimes:pdf,doc,docx', 'max:8192',
+            ],
         ]);
 
         $needsVerification = in_array($data['role'], ['mentor', 'mentee'], true);
@@ -109,10 +114,15 @@ class AuthController extends Controller
         $user->assignRole($data['role']);
 
         if ($data['role'] === 'mentor') {
+            $cvDocumentPath = $request->hasFile('cv_document')
+                ? $request->file('cv_document')->store('cv-documents', 'local')
+                : null;
+
             MentorProfile::create([
                 'user_id' => $user->id,
                 'expertise' => $data['expertise'],
                 'bio' => $data['bio'] ?? null,
+                'cv_document_path' => $cvDocumentPath,
             ]);
         } elseif ($data['role'] === 'mentee') {
             $diplomaDocumentPath = $request->hasFile('diploma_document')
