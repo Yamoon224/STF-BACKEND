@@ -83,6 +83,39 @@ class AuthTest extends TestCase
         $this->assertTrue($user->mentorProfile->cv_document_available);
     }
 
+    public function test_member_registration_starts_pending_and_requires_payment_proof(): void
+    {
+        $missingProof = $this->postJson('/api/auth/register', [
+            'name' => 'Nafissatou Touré',
+            'email' => 'nafissatou@example.org',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'member',
+        ]);
+        $missingProof->assertUnprocessable()->assertJsonValidationErrors(['payment_proof']);
+
+        $response = $this->post('/api/auth/register', [
+            'name' => 'Nafissatou Touré',
+            'email' => 'nafissatou@example.org',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'member',
+            'payment_proof' => UploadedFile::fake()->image('paiement.png'),
+        ]);
+
+        $response->assertCreated()->assertJsonPath('user.roles.0', 'member');
+        $this->assertNull($response->json('token'));
+        $this->assertTrue($response->json('pending'));
+
+        $user = User::where('email', 'nafissatou@example.org')->first();
+        $this->assertSame('pending', $user->status);
+        $this->assertNotNull($user->memberProfile);
+        $this->assertTrue($user->memberProfile->payment_proof_available);
+        $this->assertNull($user->memberProfile->validated_at);
+        // No identity document is required for a member — only the payment proof.
+        $this->assertFalse($user->identity_document_available);
+    }
+
     public function test_register_rejects_admin_and_staff_roles(): void
     {
         $response = $this->postJson('/api/auth/register', [

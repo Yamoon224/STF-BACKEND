@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Badge;
+use App\Models\MemberProfile;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +23,7 @@ class UserController extends Controller
         security: [['bearerAuth' => []]],
         tags: ['Utilisatrices'],
         parameters: [
-            new OA\QueryParameter(name: 'role', description: 'Filtrer par rôle', schema: new OA\Schema(type: 'string', enum: ['admin', 'staff', 'mentor', 'mentee', 'donor'])),
+            new OA\QueryParameter(name: 'role', description: 'Filtrer par rôle', schema: new OA\Schema(type: 'string', enum: ['admin', 'staff', 'mentor', 'mentee', 'donor', 'member'])),
             new OA\QueryParameter(name: 'status', description: 'Filtrer par statut', schema: new OA\Schema(type: 'string', enum: ['pending', 'active', 'suspended', 'rejected'])),
             new OA\QueryParameter(name: 'search', description: 'Recherche sur le nom ou l\'email', schema: new OA\Schema(type: 'string')),
         ],
@@ -35,7 +37,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         return User::query()
-            ->with(['mentorProfile', 'menteeProfile', 'roles'])
+            ->with(['mentorProfile', 'menteeProfile', 'memberProfile', 'roles'])
             ->when($request->query('role'), fn ($q, $role) => $q->role($role))
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
             ->when($request->query('search'), function ($q, $search) {
@@ -60,29 +62,36 @@ class UserController extends Controller
     )]
     public function show(User $user)
     {
-        return $user->load(['mentorProfile', 'menteeProfile', 'roles', 'badges', 'certificates']);
+        return $user->load(['mentorProfile', 'menteeProfile', 'memberProfile', 'roles', 'badges', 'certificates']);
     }
 
     /**
-     * Admin-created account (e.g. "Inviter une collaboratrice"). Unlike self-registration,
-     * this can create staff/admin accounts. The account starts with DEFAULT_PASSWORD; the
-     * admin communicates it to the invitee, who should change it from her profile.
+     * Admin-created account (e.g. "Inviter une collaboratrice", or "Ajouter une membre" with
+     * proof of payment). Unlike self-registration, this can create staff/admin accounts, and a
+     * member added this way is validated immediately — the admin already vouches for the
+     * attached payment proof — awarding the membership badge right away.
      */
     #[OA\Post(
         path: '/users',
-        summary: 'Créer un compte (invitation) — peut créer admin/staff',
+        summary: 'Créer un compte (invitation) — peut créer admin/staff/membre',
+        description: "Requiert `payment_proof` (capture d'écran) si role=member ; multipart requis dans ce cas.",
         security: [['bearerAuth' => []]],
         tags: ['Utilisatrices'],
         requestBody: new OA\RequestBody(
             required: true,
-            content: new OA\JsonContent(
-                required: ['name', 'email', 'role'],
-                properties: [
-                    new OA\Property(property: 'name', type: 'string'),
-                    new OA\Property(property: 'email', type: 'string', format: 'email'),
-                    new OA\Property(property: 'role', type: 'string', enum: ['admin', 'staff', 'mentor', 'mentee', 'donor']),
-                    new OA\Property(property: 'country', type: 'string', nullable: true),
-                ]
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    type: 'object',
+                    required: ['name', 'email', 'role'],
+                    properties: [
+                        new OA\Property(property: 'name', type: 'string'),
+                        new OA\Property(property: 'email', type: 'string', format: 'email'),
+                        new OA\Property(property: 'role', type: 'string', enum: ['admin', 'staff', 'mentor', 'mentee', 'donor', 'member']),
+                        new OA\Property(property: 'country', type: 'string', nullable: true),
+                        new OA\Property(property: 'payment_proof', type: 'string', format: 'binary', description: "Requis si role=member — capture d'écran du paiement de l'adhésion (5 000 FCFA)."),
+                    ]
+                )
             )
         ),
         responses: [
@@ -96,8 +105,12 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role' => ['required', Rule::in(['admin', 'staff', 'mentor', 'mentee', 'donor'])],
+            'role' => ['required', Rule::in(['admin', 'staff', 'mentor', 'mentee', 'donor', 'member'])],
             'country' => ['nullable', 'string', 'max:255'],
+            'payment_proof' => [
+                Rule::requiredIf($request->input('role') === 'member'),
+                'nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192',
+            ],
         ]);
 
         $user = User::create([
@@ -109,6 +122,17 @@ class UserController extends Controller
         ]);
 
         $user->assignRole($data['role']);
+
+        if ($data['role'] === 'member') {
+            $memberProfile = MemberProfile::create([
+                'user_id' => $user->id,
+                'payment_proof_path' => $request->file('payment_proof')->store('payment-proofs', 'local'),
+                'validated_at' => now(),
+                'validated_by' => $request->user()->id,
+            ]);
+            $this->awardMembershipBadge($user, $request->user());
+            $user->setRelation('memberProfile', $memberProfile);
+        }
 
         AuditLog::record($request->user(), 'compte.invite', $user, ['role' => $data['role']]);
 
@@ -192,9 +216,10 @@ class UserController extends Controller
 
     #[OA\Post(
         path: '/users/{user}/verify-identity',
-        summary: "Approuver ou rejeter la vérification d'identité",
-        description: 'Approuve (active le compte, valide le profil mentore le cas échéant) ou rejette '
-            .'(motif requis, révoque les jetons) la pièce d\'identité — et le diplôme/bulletin pour une mentée.',
+        summary: "Approuver ou rejeter la vérification d'identité ou la preuve de paiement",
+        description: 'Approuve (active le compte, valide le profil mentore le cas échéant, attribue le badge '
+            .'"Membre STF" pour une membre) ou rejette (motif requis, révoque les jetons) la pièce d\'identité '
+            .'— le diplôme/bulletin pour une mentée, ou la preuve de paiement de l\'adhésion pour une membre.',
         security: [['bearerAuth' => []]],
         tags: ['Utilisatrices'],
         parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
@@ -236,6 +261,14 @@ class UserController extends Controller
                 ]);
             }
 
+            if ($user->memberProfile) {
+                $user->memberProfile->update([
+                    'validated_at' => now(),
+                    'validated_by' => $request->user()->id,
+                ]);
+                $this->awardMembershipBadge($user, $request->user());
+            }
+
             AuditLog::record($request->user(), 'identite.approuvee', $user);
         } else {
             $user->update([
@@ -249,7 +282,26 @@ class UserController extends Controller
             AuditLog::record($request->user(), 'identite.rejetee', $user, ['reason' => $data['reason']]);
         }
 
-        return $user->load(['mentorProfile', 'menteeProfile']);
+        return $user->load(['mentorProfile', 'menteeProfile', 'memberProfile']);
+    }
+
+    /**
+     * Awards the "Membre STF" badge (created on first use) once a membership payment is
+     * validated — the badge is the system's record of the right to the STF t-shirt.
+     */
+    private function awardMembershipBadge(User $user, User $admin): void
+    {
+        $badge = Badge::firstOrCreate(
+            ['title' => 'Membre STF'],
+            [
+                'description' => "Adhésion STF validée (paiement de l'adhésion de 5 000 FCFA) — donne droit au tee-shirt STF.",
+                'criteria' => "Paiement de l'adhésion de 5 000 FCFA vérifié par l'équipe STF.",
+            ]
+        );
+
+        $badge->users()->syncWithoutDetaching([
+            $user->id => ['awarded_at' => now(), 'awarded_by' => $admin->id],
+        ]);
     }
 
     #[OA\Get(
@@ -313,6 +365,27 @@ class UserController extends Controller
         return Storage::disk('local')->response($path);
     }
 
+    #[OA\Get(
+        path: '/users/{user}/payment-proof-document',
+        summary: "Consulter la preuve de paiement de l'adhésion (membre)",
+        security: [['bearerAuth' => []]],
+        tags: ['Utilisatrices'],
+        parameters: [new OA\PathParameter(name: 'user', schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Fichier'),
+            new OA\Response(response: 403, description: "Permission `users.manage` requise"),
+            new OA\Response(response: 404, description: 'Aucun document déposé'),
+        ]
+    )]
+    public function paymentProofDocument(User $user)
+    {
+        $path = $user->memberProfile?->payment_proof_path;
+
+        abort_unless($path, 404);
+
+        return Storage::disk('local')->response($path);
+    }
+
     #[OA\Post(
         path: '/users/{user}/role',
         summary: 'Changer le rôle RBAC',
@@ -322,7 +395,7 @@ class UserController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(required: ['role'], properties: [
-                new OA\Property(property: 'role', type: 'string', enum: ['admin', 'staff', 'mentor', 'mentee', 'donor']),
+                new OA\Property(property: 'role', type: 'string', enum: ['admin', 'staff', 'mentor', 'mentee', 'donor', 'member']),
             ])
         ),
         responses: [
@@ -333,7 +406,7 @@ class UserController extends Controller
     public function assignRole(Request $request, User $user)
     {
         $data = $request->validate([
-            'role' => ['required', Rule::in(['admin', 'staff', 'mentor', 'mentee', 'donor'])],
+            'role' => ['required', Rule::in(['admin', 'staff', 'mentor', 'mentee', 'donor', 'member'])],
         ]);
 
         $user->syncRoles([$data['role']]);

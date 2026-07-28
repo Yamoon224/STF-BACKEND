@@ -150,6 +150,81 @@ class UserManagementTest extends TestCase
         $this->get("/api/users/{$mentorId}/cv-document")->assertOk();
     }
 
+    public function test_payment_proof_document_is_only_accessible_with_permission(): void
+    {
+        $member = $this->makeUser('member');
+
+        Sanctum::actingAs($this->makeUser('member'), ['*']);
+        $this->getJson("/api/users/{$member->id}/payment-proof-document")->assertForbidden();
+
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+        $this->getJson("/api/users/{$member->id}/payment-proof-document")->assertStatus(404);
+    }
+
+    public function test_admin_can_add_a_member_with_payment_proof_and_it_is_validated_immediately(): void
+    {
+        Storage::fake('local');
+        $admin = $this->makeUser('admin');
+        Sanctum::actingAs($admin, ['*']);
+
+        $response = $this->post('/api/users', [
+            'name' => 'Nouvelle Membre',
+            'email' => 'membre@example.org',
+            'role' => 'member',
+            'payment_proof' => UploadedFile::fake()->image('paiement.png'),
+        ]);
+
+        $response->assertCreated()->assertJsonPath('roles.0.name', 'member');
+        $this->assertDatabaseHas('users', ['email' => 'membre@example.org', 'status' => 'active']);
+
+        $member = User::where('email', 'membre@example.org')->first();
+        $this->assertNotNull($member->memberProfile);
+        $this->assertTrue($member->memberProfile->payment_proof_available);
+        $this->assertNotNull($member->memberProfile->validated_at);
+        $this->assertSame($admin->id, $member->memberProfile->validated_by);
+        $this->assertTrue($member->badges()->where('title', 'Membre STF')->exists());
+
+        $this->get("/api/users/{$member->id}/payment-proof-document")->assertOk();
+    }
+
+    public function test_adding_a_member_without_payment_proof_fails(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'), ['*']);
+
+        $this->postJson('/api/users', [
+            'name' => 'Sans preuve',
+            'email' => 'sanspreuve@example.org',
+            'role' => 'member',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['payment_proof']);
+    }
+
+    public function test_admin_can_approve_a_pending_members_payment_proof_and_awards_the_badge(): void
+    {
+        $admin = $this->makeUser('admin');
+        Sanctum::actingAs($admin, ['*']);
+
+        $response = $this->post('/api/auth/register', [
+            'name' => 'Nafissatou Touré',
+            'email' => 'nafissatou@example.org',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'member',
+            'payment_proof' => UploadedFile::fake()->image('paiement.png'),
+        ])->assertCreated();
+
+        $memberId = $response->json('user.id');
+        $member = User::findOrFail($memberId);
+        $this->assertFalse($member->badges()->where('title', 'Membre STF')->exists());
+
+        $this->postJson("/api/users/{$memberId}/verify-identity", ['decision' => 'approved'])->assertOk();
+
+        $member->refresh();
+        $this->assertSame('active', $member->status);
+        $this->assertNotNull($member->memberProfile->validated_at);
+        $this->assertSame($admin->id, $member->memberProfile->validated_by);
+        $this->assertTrue($member->badges()->where('title', 'Membre STF')->exists());
+    }
+
     public function test_admin_can_update_a_users_email(): void
     {
         Sanctum::actingAs($this->makeUser('admin'), ['*']);

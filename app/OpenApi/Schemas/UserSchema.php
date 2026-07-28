@@ -19,6 +19,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'last_login_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'mentor_profile', ref: '#/components/schemas/MentorProfile', nullable: true),
         new OA\Property(property: 'mentee_profile', ref: '#/components/schemas/MenteeProfile', nullable: true),
+        new OA\Property(property: 'member_profile', ref: '#/components/schemas/MemberProfile', nullable: true),
         new OA\Property(property: 'badges', type: 'array', items: new OA\Items(ref: '#/components/schemas/Badge')),
         new OA\Property(property: 'certificates', type: 'array', items: new OA\Items(ref: '#/components/schemas/Certificate')),
     ]
