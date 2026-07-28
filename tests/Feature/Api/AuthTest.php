@@ -83,7 +83,7 @@ class AuthTest extends TestCase
         $this->assertTrue($user->mentorProfile->cv_document_available);
     }
 
-    public function test_member_registration_starts_pending_and_requires_payment_proof(): void
+    public function test_member_registration_starts_pending_and_requires_payment_proof_and_tshirt_size(): void
     {
         $missingProof = $this->postJson('/api/auth/register', [
             'name' => 'Nafissatou Touré',
@@ -92,7 +92,7 @@ class AuthTest extends TestCase
             'password_confirmation' => 'password123',
             'role' => 'member',
         ]);
-        $missingProof->assertUnprocessable()->assertJsonValidationErrors(['payment_proof']);
+        $missingProof->assertUnprocessable()->assertJsonValidationErrors(['payment_proof', 'tshirt_size']);
 
         $response = $this->post('/api/auth/register', [
             'name' => 'Nafissatou Touré',
@@ -101,6 +101,7 @@ class AuthTest extends TestCase
             'password_confirmation' => 'password123',
             'role' => 'member',
             'payment_proof' => UploadedFile::fake()->image('paiement.png'),
+            'tshirt_size' => 'M',
         ]);
 
         $response->assertCreated()->assertJsonPath('user.roles.0', 'member');
@@ -111,6 +112,7 @@ class AuthTest extends TestCase
         $this->assertSame('pending', $user->status);
         $this->assertNotNull($user->memberProfile);
         $this->assertTrue($user->memberProfile->payment_proof_available);
+        $this->assertSame('M', $user->memberProfile->tshirt_size);
         $this->assertNull($user->memberProfile->validated_at);
         // No identity document is required for a member — only the payment proof.
         $this->assertFalse($user->identity_document_available);

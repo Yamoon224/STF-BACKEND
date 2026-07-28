@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MemberProfile extends Model
 {
     protected $fillable = [
-        'user_id', 'payment_proof_path', 'validated_at', 'validated_by',
+        'user_id', 'payment_proof_path', 'tshirt_size', 'validated_at', 'validated_by',
     ];
 
     protected $hidden = ['payment_proof_path'];

@@ -57,6 +57,7 @@ class AuthController extends Controller
                         new OA\Property(property: 'diploma_document', type: 'string', format: 'binary', description: 'Requis si role=mentee — diplôme ou bulletin (image ou PDF).'),
                         new OA\Property(property: 'cv_document', type: 'string', format: 'binary', description: 'Requis si role=mentor — CV (PDF, DOC ou DOCX).'),
                         new OA\Property(property: 'payment_proof', type: 'string', format: 'binary', description: "Requis si role=member — capture d'écran du paiement de l'adhésion (5 000 FCFA)."),
+                        new OA\Property(property: 'tshirt_size', type: 'string', enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], description: 'Requis si role=member — taille pour le tee-shirt STF.'),
                     ]
                 )
             )
@@ -96,10 +97,14 @@ class AuthController extends Controller
                 Rule::requiredIf($request->input('role') === 'mentor'),
                 'nullable', 'file', 'mimes:pdf,doc,docx', 'max:8192',
             ],
-            // Member-only: proof of the 5000 FCFA membership payment
+            // Member-only: proof of the 5000 FCFA membership payment, and t-shirt size
             'payment_proof' => [
                 Rule::requiredIf($request->input('role') === 'member'),
                 'nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192',
+            ],
+            'tshirt_size' => [
+                Rule::requiredIf($request->input('role') === 'member'),
+                'nullable', Rule::in(['XS', 'S', 'M', 'L', 'XL', 'XXL']),
             ],
         ]);
 
@@ -149,6 +154,7 @@ class AuthController extends Controller
             MemberProfile::create([
                 'user_id' => $user->id,
                 'payment_proof_path' => $request->file('payment_proof')->store('payment-proofs', 'local'),
+                'tshirt_size' => $data['tshirt_size'],
             ]);
         }
 

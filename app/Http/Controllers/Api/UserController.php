@@ -90,6 +90,7 @@ class UserController extends Controller
                         new OA\Property(property: 'role', type: 'string', enum: ['admin', 'staff', 'mentor', 'mentee', 'donor', 'member']),
                         new OA\Property(property: 'country', type: 'string', nullable: true),
                         new OA\Property(property: 'payment_proof', type: 'string', format: 'binary', description: "Requis si role=member — capture d'écran du paiement de l'adhésion (5 000 FCFA)."),
+                        new OA\Property(property: 'tshirt_size', type: 'string', enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], description: 'Requis si role=member — taille pour le tee-shirt STF.'),
                     ]
                 )
             )
@@ -111,6 +112,10 @@ class UserController extends Controller
                 Rule::requiredIf($request->input('role') === 'member'),
                 'nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192',
             ],
+            'tshirt_size' => [
+                Rule::requiredIf($request->input('role') === 'member'),
+                'nullable', Rule::in(['XS', 'S', 'M', 'L', 'XL', 'XXL']),
+            ],
         ]);
 
         $user = User::create([
@@ -127,6 +132,7 @@ class UserController extends Controller
             $memberProfile = MemberProfile::create([
                 'user_id' => $user->id,
                 'payment_proof_path' => $request->file('payment_proof')->store('payment-proofs', 'local'),
+                'tshirt_size' => $data['tshirt_size'],
                 'validated_at' => now(),
                 'validated_by' => $request->user()->id,
             ]);

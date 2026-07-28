@@ -172,6 +172,7 @@ class UserManagementTest extends TestCase
             'email' => 'membre@example.org',
             'role' => 'member',
             'payment_proof' => UploadedFile::fake()->image('paiement.png'),
+            'tshirt_size' => 'L',
         ]);
 
         $response->assertCreated()->assertJsonPath('roles.0.name', 'member');
@@ -180,6 +181,7 @@ class UserManagementTest extends TestCase
         $member = User::where('email', 'membre@example.org')->first();
         $this->assertNotNull($member->memberProfile);
         $this->assertTrue($member->memberProfile->payment_proof_available);
+        $this->assertSame('L', $member->memberProfile->tshirt_size);
         $this->assertNotNull($member->memberProfile->validated_at);
         $this->assertSame($admin->id, $member->memberProfile->validated_by);
         $this->assertTrue($member->badges()->where('title', 'Membre STF')->exists());
@@ -187,7 +189,7 @@ class UserManagementTest extends TestCase
         $this->get("/api/users/{$member->id}/payment-proof-document")->assertOk();
     }
 
-    public function test_adding_a_member_without_payment_proof_fails(): void
+    public function test_adding_a_member_without_payment_proof_or_tshirt_size_fails(): void
     {
         Sanctum::actingAs($this->makeUser('admin'), ['*']);
 
@@ -195,7 +197,7 @@ class UserManagementTest extends TestCase
             'name' => 'Sans preuve',
             'email' => 'sanspreuve@example.org',
             'role' => 'member',
-        ])->assertUnprocessable()->assertJsonValidationErrors(['payment_proof']);
+        ])->assertUnprocessable()->assertJsonValidationErrors(['payment_proof', 'tshirt_size']);
     }
 
     public function test_admin_can_approve_a_pending_members_payment_proof_and_awards_the_badge(): void
@@ -210,6 +212,7 @@ class UserManagementTest extends TestCase
             'password_confirmation' => 'password123',
             'role' => 'member',
             'payment_proof' => UploadedFile::fake()->image('paiement.png'),
+            'tshirt_size' => 'S',
         ])->assertCreated();
 
         $memberId = $response->json('user.id');
